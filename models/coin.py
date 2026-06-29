@@ -20,7 +20,7 @@ class Coin:
         line = f"{self.name}|'{self.symbol}' -- "
 
         if self.current_price:
-            line += f"Price: ${self.current_price:,.2f}" if self.current_price
+            line += f"Price: ${self.current_price:,.2f}" if self.current_price else "Данные отсутствуют"
         else:
             line += "Price: Данные отсутствуют"
 
@@ -47,3 +47,38 @@ class Coin:
         other_change = other.price_change_for_24h or 0
 
         return self_change > other_change
+
+    def compare_by_market_cap(self, other: "Coin"): # аналог lt но сравниваем рыночную капитализвцию
+        if not isinstance(other, Coin):
+            return NotImplemented
+
+        self_change = self.market_cap or 0
+        other_change = other.market_cap or 0
+
+        return self_change < other_change
+
+    @classmethod
+    def from_dict(cls, data: dict, source: str = "coingecko") -> "Coin":
+        if source == "coingecko":
+            return cls(name = data.get("name", "None"),
+            symbol = data.get("symbol", "None"),
+            current_price = data.get("current_price", "None"),
+            total_value = data.get("total_volume", "None"),
+            market_cap = data.get("market_cap", "None"),
+            price_change_for_24h = data.get("price_change_percentage_24h", "None")
+            )
+
+        elif source == "coinmarketcap":
+            return cls(
+                name=data.get("name", "None"),
+                symbol=data.get("symbol", "None"),
+                current_price=data.get("quote", {}).get("USD", {}).get("price"),
+                total_value=data.get("quote", {}).get("USD", {}).get("volume_24h"),
+                market_cap=data.get("cmc_rank"),
+                price_change_for_24h=data.get("quote", {}).get("USD", {}).get("percent_change_24h")
+            )
+        else:
+            raise ValueError(f"Неизвестный источник - {source}")
+
+
+
