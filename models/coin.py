@@ -60,7 +60,8 @@ class Coin:
     @classmethod
     def from_dict(cls, data: dict, source: str = "coingecko") -> "Coin":
         if source == "coingecko":
-            return cls(name = data.get("name", "None"),
+            return cls(
+            name = data.get("name", "None"),
             symbol = data.get("symbol", "None"),
             current_price = data.get("current_price", None),
             total_value = data.get("total_volume", None),
