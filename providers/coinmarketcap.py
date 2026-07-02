@@ -19,7 +19,7 @@ class CoinMarketCapProvider(BaseProvider):
 
         self.time_out = time_out
 
-    def featch_top_coins(self, limit: int = 50) -> List[Coin]:
+    def fetch_top_coins(self, limit: int = 50) -> List[Coin]:
         headers = {
             "X-CMC_PRO_API_KEY": self.api_key,
             "Accept": "application/json"

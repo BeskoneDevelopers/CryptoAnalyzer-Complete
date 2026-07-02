@@ -13,7 +13,7 @@ class CoinGeckoProvider(BaseProvider):
     def __init__(self, time_out: int = 10):
         self.time_out = time_out
 
-    def featch_top_coins(self, limit: int = 50) -> List[Coin]:
+    def fetch_top_coins(self, limit: int = 50) -> List[Coin]:
         params = {
             "vs_currency": "usd",
             "order": "market_cap_desc",

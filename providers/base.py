@@ -5,7 +5,7 @@ from models.coin import Coin
 class BaseProvider(ABC):
 
     @abstractmethod
-    def featch_top_coins(self, limit: int = 50) -> List[Coin]:
+    def fetch_top_coins(self, limit: int = 50) -> List[Coin]:
         pass
 
     @abstractmethod

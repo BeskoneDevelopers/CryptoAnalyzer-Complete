@@ -26,7 +26,7 @@ class CryptoPortfolio:
         return sorted(self._coin, key=lambda coins: coins.price_change_for_24h or float("-inf"))[:count]
 
     def get_highest_volume(self):
-        return max(self._coin, key=lambda coins: coins.total_value or 0)
+        return max(self._coin, key=lambda coins: coins.total_volume or 0)
 
     def get_total_market_cap(self):
         return sum(coin.market_cap or 0 for coin in self._coin)

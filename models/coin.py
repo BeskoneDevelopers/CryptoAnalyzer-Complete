@@ -8,7 +8,7 @@ class Coin:
     name: str
     symbol: str
     current_price: Optional[float] = None
-    total_value: Optional[float] = None
+    total_volume: Optional[float] = None
     market_cap: Optional[float] = None
     price_change_for_24h: Optional[float] = None
 
@@ -64,7 +64,7 @@ class Coin:
             name = data.get("name", "None"),
             symbol = data.get("symbol", "None"),
             current_price = data.get("current_price", None),
-            total_value = data.get("total_volume", None),
+            total_volume = data.get("total_volume", None),
             market_cap = data.get("market_cap", None),
             price_change_for_24h = data.get("price_change_percentage_24h", None)
             )
@@ -74,7 +74,7 @@ class Coin:
                 name=data.get("name", "None"),
                 symbol=data.get("symbol", "None"),
                 current_price=data.get("quote", {}).get("USD", {}).get("price"),
-                total_value=data.get("quote", {}).get("USD", {}).get("volume_24h"),
+                total_volume=data.get("quote", {}).get("USD", {}).get("volume_24h"),
                 market_cap=data.get("cmc_rank"),
                 price_change_for_24h=data.get("quote", {}).get("USD", {}).get("percent_change_24h")
             )
