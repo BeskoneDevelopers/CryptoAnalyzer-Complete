@@ -31,10 +31,11 @@ class JsonReporter(BaseReporter):
             "highest_volume": {
                 "name": highest.name,
                 "symbol": highest.symbol,
-                "volue": highest.total_value
+                "volume": highest.total_value
             }
         }
         
         with open(self.filename, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
+
         print(f"Файл сохранен - {self.filename}")
