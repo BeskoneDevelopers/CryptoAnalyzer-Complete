@@ -32,7 +32,7 @@ def analyze(
         reporter.report(portfolio, provider.get_name(), top_count=top)
 
     except ValueError as e:
-        console.print(f"[red]❌ Ошибка: {e}[/red]")
+        console.print(f"[red]❌ Ошибка!: {e}[/red]")
         raise typer.Exit(code=1)
     except Exception as e:
         console.print(f"[red]❌ Непредвиденная ошибка: {e}[/red]")
