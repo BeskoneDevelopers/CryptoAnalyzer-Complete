@@ -1,8 +1,11 @@
 requests
 dotenv
+
 rich
+
 typer
+
 pytest
 requests-mock
 
-pytest-cov #Чудо дивное
+pytest-cov #Чудо дивное, можно узнатьпроцент покрытия программы

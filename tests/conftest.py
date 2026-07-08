@@ -61,3 +61,35 @@ def tarcoin():
 @pytest.fixture
 def sample_coins(bitcoin, bobrecoin, tarcoin, tomasikshcelbek, ethereum):
     return [bitcoin, bobrecoin, tarcoin, tomasikshcelbek, ethereum]
+
+
+###################### Подключение mock тестов ##################
+
+@pytest.fixture
+def mock_coingecko_response():
+    return [
+        {
+            "name": "Bitcoin",
+            "symbol": "btc",
+            "current_price": 62000.0,
+            "total_volume": 35000000000.0,
+            "market_cap": 1200000000000.0,
+            "price_change_percentage_24h": 2.5
+        },
+        {
+            "name": "Ethereum",
+            "symbol": "eth",
+            "current_price": 3400.0,
+            "total_volume": 15000000000.0,
+            "market_cap": 400000000000.0,
+            "price_change_percentage_24h": -1.2
+        },
+        {
+            "name": "Bobrcoin",
+            "symbol": "brc",
+            "current_price": 54300.0,
+            "total_volume": 14000000000.0,
+            "market_cap": 432000000000.0,
+            "price_change_percentage_24h": 16.5
+        }
+    ]

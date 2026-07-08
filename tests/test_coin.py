@@ -1,3 +1,5 @@
+import pytest
+
 from models.coin import Coin
 
 class TestCoinCreated:
@@ -30,19 +32,17 @@ class TestCoinCreated:
         assert coin.price_change_for_24h is None
 
 class TestCoinString:
-    def test_str_all_stat(self, tomasikshcelbek):
-        result = str(tomasikshcelbek)
-        assert "Tomasik" in result
-        assert "TMS" in result
-        assert "$1,400.00" in result
-        assert "-13.80%" in result
-
-    def test_str_min_stat(self):
-        coin = Coin(name="Tester", symbol="TSR")
+    @pytest.mark.parametrize("fixture_name, expected_in_str", [
+        ("bitcoin", ["Bitcoin", "BTC", "62,000.00", "+2.00%"]),
+        ("tomasikshcelbek", ["Tomasik", "TMS", "1,400.00", "-13.80%"]),
+        ("tarcoin", ["Tarcoin", "EFT", "100.00", "Данные отсутствуют"])
+    ])
+    def test_str_contains(self, fixture_name, expected_in_str, request):
+        coin = request.getfixturevalue(fixture_name)
         result = str(coin)
-        assert "Tester" in result
-        assert "TSR" in result
-        assert "Данные отсутствуют" in result
+        for part in expected_in_str:
+            assert part in result, f"Ожидание - '{part}' / Ответ - '{result}'"
+
 
 class TestCoinRepr:
     def test_repr_to_change(self, tomasikshcelbek):
@@ -56,23 +56,19 @@ class TestCoinRepr:
         assert "Данные отсутствуют" in result
 
 class TestCoinComparison:
-    def test_lt_true(self, ethereum, bitcoin):
-        assert ethereum < bitcoin
+    @pytest.mark.parametrize("coin_name_1,coin_name_2,exp_lt,exp_gt", [
+        ("ethereum", "bitcoin", True, False),
+        ("bitcoin", "ethereum", False, True),
+        ("bitcoin", "tarcoin", False, True),
+        ("tarcoin", "ethereum", False, True),
+    ])
+    def test_comparison(self, coin_name_1, coin_name_2, exp_lt, exp_gt, request):
+        coin1 = request.getfixturevalue(coin_name_1)
+        coin2 = request.getfixturevalue(coin_name_2)
 
-    def test_lt_false(self, bitcoin, ethereum):
-        assert not (bitcoin < ethereum)
+        assert (coin1 < coin2) == exp_lt
+        assert (coin1 > coin2) == exp_gt
 
-    def test_gt_true(self, bitcoin, ethereum):
-        assert bitcoin > ethereum
-
-    def test_gt_false(self, ethereum, bitcoin):
-        assert not (ethereum > bitcoin)
-
-    def test_compare(self, bitcoin, ethereum):
-        assert bitcoin > ethereum
-
-    def test_compare_rev(self, ethereum, tarcoin):
-        assert ethereum < tarcoin
 
 class TestMarketCap:
     def test_market_cap_true(self, ethereum, bitcoin):

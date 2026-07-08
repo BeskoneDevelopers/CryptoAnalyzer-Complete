@@ -62,7 +62,7 @@ class Coin:
         if source == "coingecko":
             return cls(
             name = data.get("name", "None"),
-            symbol = data.get("symbol", "None"),
+            symbol = data.get("symbol", "None").upper(),
             current_price = data.get("current_price", None),
             total_volume = data.get("total_volume", None),
             market_cap = data.get("market_cap", None),
@@ -72,7 +72,7 @@ class Coin:
         elif source == "coinmarketcap":
             return cls(
                 name=data.get("name", "None"),
-                symbol=data.get("symbol", "None"),
+                symbol=data.get("symbol", "None").upper(),
                 current_price=data.get("quote", {}).get("USD", {}).get("price"),
                 total_volume=data.get("quote", {}).get("USD", {}).get("volume_24h"),
                 market_cap=data.get("cmc_rank"),
