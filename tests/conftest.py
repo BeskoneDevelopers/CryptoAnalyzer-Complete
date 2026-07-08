@@ -63,7 +63,7 @@ def sample_coins(bitcoin, bobrecoin, tarcoin, tomasikshcelbek, ethereum):
     return [bitcoin, bobrecoin, tarcoin, tomasikshcelbek, ethereum]
 
 
-###################### Подключение mock тестов ##################
+###################### Подключение mock тестов для coingecko ##################
 
 @pytest.fixture
 def mock_coingecko_response():
@@ -93,3 +93,36 @@ def mock_coingecko_response():
             "price_change_percentage_24h": 16.5
         }
     ]
+
+###################### Подключение mock тестов для coinmarket ##################
+
+@pytest.fixture
+def mock_coinmarket_response():
+    return {
+        "data": [
+            {
+                "name": "Bitcoin",
+                "symbol": "BTC",
+                "quote": {
+                    "USD": {
+                        "price": 62000.0,
+                        "volume_24h": 35000000000.0,
+                        "market_cap": 1200000000000.0,
+                        "percent_change_24h": 2.5
+                    }
+                }
+            },
+            {
+                "name": "Ethereum",
+                "symbol": "ETH",
+                "quote": {
+                    "USD": {
+                        "price": 3400.0,
+                        "volume_24h": 15000000000.0,
+                        "market_cap": 400000000000.0,
+                        "percent_change_24h": -1.2
+                    }
+                }
+            }
+        ]
+    }

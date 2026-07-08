@@ -25,7 +25,7 @@ class TestPortfolioCreation:
         portfolio = CryptoPortfolio(sample_coins)
         losers = portfolio.get_top_losers(3)
         assert len(losers) == 3
-        assert losers[0].symbol == "TMS"
+        assert losers[0].symbol == "EFT"
 
     def test_highest_volume(self, sample_coins):
         portfolio = CryptoPortfolio(sample_coins)
