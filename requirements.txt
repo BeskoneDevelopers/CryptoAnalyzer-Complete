@@ -2,3 +2,7 @@ requests
 dotenv
 rich
 typer
+pytest
+requests-mock
+
+pytest-cov #Чудо дивное
