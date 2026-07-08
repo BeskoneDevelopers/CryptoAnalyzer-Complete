@@ -1,63 +1,41 @@
-from models.coin import Coin
+from models.portfolio import CryptoPortfolio
 
-import pytest
+class TestPortfolioCreation:
+    def test_empty_portfolio(self):
+        portfolio = CryptoPortfolio()
+        assert len(portfolio) == 0
 
+    def test_portfolio_semple_coins(self, sample_coins):
+        portfolio = CryptoPortfolio(sample_coins)
+        assert len(portfolio) == 5
 
-@pytest.fixture
-def bitcoin():
-    return Coin(
-        name="Bitcoin",
-        symbol="BTC",
-        current_price=62000.0,
-        total_volume=35000000000.0,
-        market_cap=1200000000000.0,
-        price_change_for_24h=2.0
-    )
+    def test_coin_returns_copy(self, tarcoin):
+        portfolio = CryptoPortfolio([tarcoin])
+        coin_copy = portfolio.coins
+        coin_copy.clear()
+        assert len(portfolio) == 1
 
-@pytest.fixture
-def ethereum():
-    return Coin(
-        name="Ethereum",
-        symbol="ETH",
-        current_price=3400.0,
-        total_volume=15000000000.0,
-        market_cap=400000000000.0,
-        price_change_for_24h=-1.1
-    )
+    def test_top_gainers(self, sample_coins):
+        portfolio = CryptoPortfolio(sample_coins)
+        gainers = portfolio.get_top_gainers(3)
+        assert len(gainers) == 3
+        assert gainers[0].symbol == "BRC"
 
-@pytest.fixture
-def bobrecoin():
-    return Coin(
-        name="Bobrcoin",
-        symbol="BRC",
-        current_price=54300.0,
-        total_volume=14000000000.0,
-        market_cap=432000000000.0,
-        price_change_for_24h=16.5
-    )
+    def test_top_losers(self, sample_coins):
+        portfolio = CryptoPortfolio(sample_coins)
+        losers = portfolio.get_top_losers(3)
+        assert len(losers) == 3
+        assert losers[0].symbol == "TMS"
 
-@pytest.fixture
-def tomasikshcelbek():
-    return Coin(
-        name="Tomasik",
-        symbol="TMS",
-        current_price=1400.0,
-        total_volume=6000000000.0,
-        market_cap=2300000000.0,
-        price_change_for_24h=-13.8
-    )
+    def test_highest_volume(self, sample_coins):
+        portfolio = CryptoPortfolio(sample_coins)
+        highest = portfolio.get_highest_volume()
+        assert highest.symbol == "BTC"
 
-@pytest.fixture
-def tarcoin():
-    return Coin(
-        name="Tarcoin",
-        symbol="EFT",
-        current_price=100.0,
-        total_volume=20000000.0,
-        market_cap=7000000000.0,
-        price_change_for_24h=None
-    )
+    def test_empty_portfolio_analysis(self):
+        portfolio = CryptoPortfolio()
 
-@pytest.fixture
-def sample_coins(bitcoin, bobrecoin, tarcoin, tomasikshcelbek, ethereum):
-    return [bitcoin, bobrecoin, tarcoin, tomasikshcelbek, ethereum]
+        assert portfolio.get_top_losers() == []
+        assert portfolio.get_top_losers() == []
+        assert portfolio.get_highest_volume() == None
+        assert portfolio.get_total_market_cap() == 0
