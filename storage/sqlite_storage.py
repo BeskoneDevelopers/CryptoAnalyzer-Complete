@@ -66,3 +66,26 @@ class SqliteStorage(BaseStorage):
                 """,
                 coin_rows
             )
+
+    def list_cadr(self):
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT id, generated_at, provider, total_coins, total_market_cap
+                FROM cadr
+                ORDER BY generated_at DESC
+                """
+            ).fetchall()
+            return rows
+
+    def compare_cadr(self, id1: int, id2):
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT a.symbol, a.price as old_price, b.price as new_price, (b.price - a.price) as diff
+                FROM coin_price a JOIN coin_price b ON a.symbol = b.symbol
+                WHERE a.cadr_id = ? AND b.cadr_id = ?
+                """,
+                (id1, id2)
+            ).fetchall()
+            return rows
