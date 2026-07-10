@@ -7,6 +7,9 @@ from providers import get_provider
 from reporters import get_reporter
 
 
+from settings import settings, StorageType
+from storage.json_storage import JsonStorage
+
 app = typer.Typer(
     name="Crypto-analyzer",
     help="Анализ рынка крипты"
@@ -28,7 +31,14 @@ def analyze(
 
         portfolio = CryptoPortfolio(coins)
 
-        reporter = get_reporter(output)
+        if settings.storage == StorageType.JSON:
+            storage = JsonStorage()
+        #elif settings.storage == StorageType.SQLITE:
+            #storage = SqliteStorage()
+        else:
+            raise ValueError(f"Неизвестное хранилище: {settings.storage}")
+
+        reporter = get_reporter(output, storage=storage)
         reporter.report(portfolio, provider.get_name(), top_count=top)
 
     except ValueError as e:
