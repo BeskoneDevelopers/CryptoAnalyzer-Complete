@@ -89,3 +89,44 @@ class SqliteStorage(BaseStorage):
                 (id1, id2)
             ).fetchall()
             return rows
+
+    def get_top_gainers_last(self, limit: int = 5):
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT name, symbol, price, 24h_change
+                FROM coin_price
+                WHERE cadr_id = (SELECT MAX(id) FROM cadr)
+                ORDER BY 24h_change DESC
+                LIMIT ?
+                """,
+                (limit,)
+            ).fetchall()
+            return rows
+
+    def get_top_loser_last(self, limit: int = 5):
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT name, symbol, price, 24h_change
+                FROM coin_price
+                WHERE cadr_id = (SELECT MAX(id) FROM cadr)
+                ORDER BY 24h_change ASC
+                LIMIT ?
+                """,
+                (limit,)
+            ).fetchall()
+            return rows
+
+    def get_coin_history(self, symbol: str):
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT c.generated_at, p.price, p.24h_change
+                FROM coin_price p JOIN cadr c ON p.cadr_id = c.id
+                WHERE p.symbol = ?
+                ORDER BY c.generated_at
+                """,
+                (symbol,)
+            ).fetchall()
+            return rows
