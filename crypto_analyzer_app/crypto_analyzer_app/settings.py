@@ -15,6 +15,7 @@ from pathlib import Path
 ######Подключение ключа с .env###########
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 CMC_API_KEY = os.getenv("CMC_API_KEY")
 ########################################
@@ -45,7 +46,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    "analyzer"
+    "analyzer",
+    "rest_framework",
+    "django-filter",
 ]
 
 MIDDLEWARE = [
@@ -126,5 +129,6 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
+
 
 STATIC_URL = 'static/'

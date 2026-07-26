@@ -24,7 +24,7 @@ class Snapshot(models.Model):
 
 class CoinPrice(models.Model):
     coin = models.ForeignKey(Coin, on_delete=models.CASCADE)
-    snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
+    snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE,  related_name="coin_prices")
     price = models.DecimalField(max_digits=24, decimal_places=8)
     volume_24h = models.DecimalField(max_digits=24, decimal_places=8)
     change_24h = models.DecimalField(max_digits=24, decimal_places=8)
