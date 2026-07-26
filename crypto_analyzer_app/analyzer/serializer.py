@@ -33,3 +33,7 @@ class SnapshotSerializer(serializers.ModelSerializer):
     class Meta:
         model = Snapshot
         fields = ["id", "provider", "total_coins", "total_market_cap", "coin_prices"]
+
+
+
+    #Секретка
