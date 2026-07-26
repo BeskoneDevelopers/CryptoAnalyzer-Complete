@@ -11,15 +11,20 @@ class CoinFilter(filters.FilterSet):
         fields = ["symbol"]
 
 
-class CoinSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Coin
-        fields = ["id", "name", "symbol"]
 
 class CoinPriceSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoinPrice
         fields = ["id", "coin", "snapshot", "price", "volume_24h", "change_24h"]
+
+
+class CoinSerializer(serializers.ModelSerializer):
+    prices = CoinPriceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Coin
+        fields = ["id", "name", "symbol", "prices"]
+
 
 
 class SnapshotSerializer(serializers.ModelSerializer):

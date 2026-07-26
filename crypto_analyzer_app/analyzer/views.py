@@ -6,7 +6,6 @@ from rest_framework.viewsets import ModelViewSet
 from .models import Snapshot, Coin
 from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter
 
-from rest_framework.pagination import PageNumberPagination
 
 class SnapshotViewSet(ModelViewSet):
     queryset = Snapshot.objects.prefetch_related("coin_prices").all()
