@@ -1,7 +1,8 @@
 from rest_framework.routers import DefaultRouter
-from .views import SnapshotViewSet
+from .views import SnapshotViewSet,CoinViewSet
 
 router = DefaultRouter()
-router.register("snapshot", SnapshotViewSet, basename="snapshot")
+router.register("snapshots", SnapshotViewSet, basename="snapshots")
+router.register("coins", CoinViewSet, basename="coins")
 
 urlpatterns = router.urls

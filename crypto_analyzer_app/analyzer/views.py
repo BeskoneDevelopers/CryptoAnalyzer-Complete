@@ -1,10 +1,10 @@
 
 from django.shortcuts import render
-
+from django_filters import rest_framework as filters
 from rest_framework.viewsets import ModelViewSet
 
-from .models import Snapshot
-from .serializer import SnapshotSerializer
+from .models import Snapshot, Coin
+from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter
 
 from rest_framework.pagination import PageNumberPagination
 
@@ -13,3 +13,8 @@ class SnapshotViewSet(ModelViewSet):
     serializer_class = SnapshotSerializer
 
 
+class CoinViewSet(ModelViewSet):
+    queryset = Coin.objects.all()
+    serializer_class = CoinSerializer
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = CoinFilter
