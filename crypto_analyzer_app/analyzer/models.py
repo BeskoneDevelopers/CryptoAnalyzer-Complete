@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 class Coin(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -29,8 +30,6 @@ class CoinPrice(models.Model):
     volume_24h = models.DecimalField(max_digits=24, decimal_places=8)
     change_24h = models.DecimalField(max_digits=24, decimal_places=8)
 
-
-
     class Meta:
         verbose_name_plural = "coin_prices"
         unique_together = ["coin", "snapshot"]
@@ -40,3 +39,24 @@ class CoinPrice(models.Model):
 
     def __str__(self):
         return f"{self.coin.name} -> ${self.price}"
+
+
+class WatchlistItem(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="watchlist_items")
+    coin = models.ForeignKey(Coin, on_delete=models.CASCADE, related_name="tracked")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta: #Тест нового способа описания уникальности
+        verbose_name_plural = "list_items"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "coin"],
+                name="unique_user_coin"
+            )
+        ]
+        indexes = [
+            models.Index(fields=["user", "coin"])
+        ]
+
+    def __str__(self):
+        return f"{self.user}: {self.coin}"
