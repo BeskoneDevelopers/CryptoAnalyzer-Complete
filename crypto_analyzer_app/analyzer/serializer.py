@@ -45,7 +45,7 @@ class WatchlistInputSerializer(serializers.Serializer):
         result = validate_symbol(value)
         if not result:
             raise serializers.ValidationError(f"Монета {value} не найдена")
-        return result
+        return value
 
     def create(self, validated_data):
         user = self.context["request"].user
@@ -53,7 +53,8 @@ class WatchlistInputSerializer(serializers.Serializer):
         return add_to_watchlist(user, symbol)
 
 class WatchlistOutputSerializer(serializers.ModelSerializer):
-    coin = CoinSerializer(read_only=True)
+    coin = serializers.StringRelatedField()
+
     class Meta:
         model = WatchlistItem
         fields = ["id", "coin", "added_at"]

@@ -1,5 +1,7 @@
 from django.conf import settings
 
+import requests
+
 from analyzer.models import Coin, Snapshot, CoinPrice, WatchlistItem
 
 def get_provider():

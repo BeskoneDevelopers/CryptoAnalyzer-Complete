@@ -34,6 +34,15 @@ class WatchlistViewSet(ModelViewSet):
     def get_queryset(self):
         return WatchlistItem.objects.filter(user=self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save()
+
+        output_serializer = WatchlistOutputSerializer(instance)
+
+        return Response(output_serializer.data, status=201)
+
     @action(detail=False, methods=["delete"], url_path="remove")
     def delete_watchlist(self, request):
         symbol = request.data.get("symbol")

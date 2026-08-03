@@ -48,6 +48,7 @@ class WatchlistItem(models.Model):
 
     class Meta: #Тест нового способа описания уникальности
         verbose_name_plural = "list_items"
+        ordering = ["-added_at"]
         constraints = [
             models.UniqueConstraint(
                 fields=["user", "coin"],
