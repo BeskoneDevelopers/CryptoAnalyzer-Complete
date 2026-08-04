@@ -106,6 +106,6 @@ class Command(BaseCommand):
                 return normalized
 
         else:
-            self.stderr.write(f"Неизвестный провайдер {provider}")
+            self.stderr.write(f"Неизвестный провайдер - {provider}")
             return []
 
