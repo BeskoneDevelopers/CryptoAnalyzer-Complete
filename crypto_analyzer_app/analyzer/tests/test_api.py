@@ -1,8 +1,11 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.db import reset_queries
 from analyzer.models import Coin
 
 from unittest.mock import patch
+
+from analyzer.models import WatchlistItem
 
 User = get_user_model()
 
@@ -42,3 +45,18 @@ class WatchlistAPI(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["coin"], "Bitcoin")
 
+    def test_watchlist_query_count(self):
+        coin_one = Coin.objects.create(name="Bobrcoin", symbol="bobr")
+        coin_two = Coin.objects.create(name="Tarcoin", symbol="bsg")
+        WatchlistItem.objects.create(user=self.user, coin=coin_one)
+        WatchlistItem.objects.create(user=self.user, coin=coin_two)
+
+        reset_queries()
+
+        with self.assertNumQueries(2):
+            response = self.client.get(
+                "/api/watchlist/",
+                HTTP_AUTHORIZATION=self.auth_header
+            )
+
+        self.assertEqual(response.status_code, 200)
