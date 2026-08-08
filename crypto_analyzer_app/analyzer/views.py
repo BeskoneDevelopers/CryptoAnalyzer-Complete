@@ -18,7 +18,7 @@ class SnapshotViewSet(ModelViewSet):
 
 
 class CoinViewSet(ModelViewSet):
-    queryset = Coin.objects.all()
+    queryset = Coin.objects.prefetch_related("prices").all()
     serializer_class = CoinSerializer
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = CoinFilter
@@ -32,7 +32,7 @@ class WatchlistViewSet(ModelViewSet):
         return WatchlistOutputSerializer
 
     def get_queryset(self):
-        return WatchlistItem.objects.filter(user=self.request.user)
+        return WatchlistItem.objects.select_related("coin").all()
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

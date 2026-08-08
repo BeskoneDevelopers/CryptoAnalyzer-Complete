@@ -41,3 +41,4 @@ class WatchlistAPI(TestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["coin"], "Bitcoin")
+
