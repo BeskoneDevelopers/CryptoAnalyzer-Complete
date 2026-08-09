@@ -1,3 +1,4 @@
+from debug_toolbar.store import serialize
 from rest_framework.decorators import action
 from  rest_framework.response import Response
 from django.shortcuts import render
@@ -9,8 +10,8 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 
 from .models import Snapshot, Coin, WatchlistItem
-from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, WatchlistInputSerializer, WatchlistOutputSerializer
-from .services import remove_from_watchlist
+from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, WatchlistInputSerializer, WatchlistOutputSerializer, CoinPriceAnalyticSerializer
+from .services import remove_from_watchlist, get_market_stats
 
 
 class SnapshotViewSet(ModelViewSet):
@@ -49,4 +50,27 @@ class WatchlistViewSet(ModelViewSet):
         symbol = request.data.get("symbol")
         result = remove_from_watchlist(request.user, symbol)
         return Response(result)
+
+
+class MarketStatusView(APIView):
+    def get(self, request):
+        stats = get_market_stats()
+        if "error" in stats:
+            return Response(stats, status=404)
+        return Response(stats)
+
+class TopMoversView(APIView):
+    def get(self, request):
+        move = get_top_movers()
+        if "error" in stats:
+            return Response(stats, status=404)
+
+        serializer = CoinPriceAnalyticSerializer(move, many=True)
+        return Response(serializer.data)
+
+class VolumeTopView(APIView):
+    def get(self, request):
+        toper = get_top_volume()
+        serializer = CoinPriceAnalyticSerializer(toper, many=True)
+        return Response(serializer.data)
 

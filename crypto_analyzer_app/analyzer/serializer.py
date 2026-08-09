@@ -60,3 +60,10 @@ class WatchlistOutputSerializer(serializers.ModelSerializer):
         fields = ["id", "coin", "added_at"]
 
 
+class CoinPriceAnalyticSerializer(serializers.ModelSerializer):
+    coin_name = serializers.CharField(source="coin.name", read_only=True)
+    coin_symbol = serializers.CharField(source="coin.symbol", read_only=True)
+
+    class Meta:
+        model = CoinPrice
+        fields = ["coin_name", "coin_symbol", "price", "volume_24h", "change_24h"]
