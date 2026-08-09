@@ -10,7 +10,7 @@ router.register("watchlist", WatchlistViewSet, basename="watchlist"),
 
 
 urlpatterns = [
-    patch("analytics/market-stats/", MarketStatusView.as_view(), name="market-stats"),
+    path("analytics/market-stats/", MarketStatusView.as_view(), name="market-stats"),
     path("analytics/toper-move/", TopMoversView.as_view(), name="toper-move"),
     path("analytics/volume-top/", VolumeTopView.as_view(), name="volume-top"),
 ] + router.urls

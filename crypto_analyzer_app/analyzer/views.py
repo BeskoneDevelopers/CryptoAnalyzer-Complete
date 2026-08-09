@@ -1,7 +1,6 @@
-from debug_toolbar.store import serialize
+
 from rest_framework.decorators import action
 from  rest_framework.response import Response
-from django.shortcuts import render
 from django_filters import rest_framework as filters
 from rest_framework.views import APIView
 
@@ -11,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from .models import Snapshot, Coin, WatchlistItem
 from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, WatchlistInputSerializer, WatchlistOutputSerializer, CoinPriceAnalyticSerializer
-from .services import remove_from_watchlist, get_market_stats
+from .services import remove_from_watchlist, get_market_stats, get_top_movers, get_top_volume
 
 
 class SnapshotViewSet(ModelViewSet):
@@ -62,8 +61,8 @@ class MarketStatusView(APIView):
 class TopMoversView(APIView):
     def get(self, request):
         move = get_top_movers()
-        if "error" in stats:
-            return Response(stats, status=404)
+        if isinstance(move, dict) and "error" in move:
+            return Response(move, status=404)
 
         serializer = CoinPriceAnalyticSerializer(move, many=True)
         return Response(serializer.data)
@@ -71,6 +70,9 @@ class TopMoversView(APIView):
 class VolumeTopView(APIView):
     def get(self, request):
         toper = get_top_volume()
+        if isinstance(toper, dict) and "error" in toper:
+            return Response(toper, status=404)
+
         serializer = CoinPriceAnalyticSerializer(toper, many=True)
         return Response(serializer.data)
 

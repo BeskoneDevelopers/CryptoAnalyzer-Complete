@@ -5,12 +5,39 @@ from django_filters import rest_framework as filters
 
 from .services import validate_symbol, add_to_watchlist
 
+# class CoinFilter(filters.FilterSet):
+#     symbol = filters.CharFilter(lookup_expr="iexact")
+#
+#     class Meta:
+#         model = Coin
+#         fields = ["symbol"]
+
 class CoinFilter(filters.FilterSet):
     symbol = filters.CharFilter(lookup_expr="iexact")
+    min_price = filters.NumberFilter(method="filter_min_price", field_name="min_price", label="max price")
+    max_price = filters.NumberFilter(method="filter_max_price", field_name="max_price", label="min price")
 
     class Meta:
         model = Coin
-        fields = ["symbol"]
+        fields = ["symbol", "min_price", "max_price"]
+
+    def _latest_coin_ids(self, price_lookup): #разабрать функцию
+        last = Snapshot.objects.last()
+        if not last:
+            return Coin.objects.none()
+        return CoinPrice.objects.filter(
+            snapshot=last,
+            **price_lookup
+        ).values_list("coin_id", flat=True)
+
+    def filter_max_price(self, queryset, name, value):
+        coin_ids = self._latest_coin_ids({"price__lte": value})
+        return queryset.filter(id__in=coin_ids)
+
+    def filter_min_price(self, queryset, name, value):
+        coin_ids = self._latest_coin_ids({"price__gte": value})
+        return queryset.filter(id__in=coin_ids)
+
 
 
 
