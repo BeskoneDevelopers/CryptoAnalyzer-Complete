@@ -2,6 +2,7 @@ from rest_framework.decorators import action
 from  rest_framework.response import Response
 from django.shortcuts import render
 from django_filters import rest_framework as filters
+from rest_framework.views import APIView
 
 from rest_framework.viewsets import ModelViewSet
 
@@ -32,7 +33,7 @@ class WatchlistViewSet(ModelViewSet):
         return WatchlistOutputSerializer
 
     def get_queryset(self):
-        return WatchlistItem.objects.select_related("coin").all()
+        return WatchlistItem.objects.filter(user=self.request.user).select_related("coin")
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -48,3 +49,4 @@ class WatchlistViewSet(ModelViewSet):
         symbol = request.data.get("symbol")
         result = remove_from_watchlist(request.user, symbol)
         return Response(result)
+

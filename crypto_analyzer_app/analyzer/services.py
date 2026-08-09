@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.db.models import Sum, Avg, Max, Min
 
 import requests
 
@@ -62,4 +63,22 @@ def get_watchlist(user):
         return {"error": f"Пользователь {user} не найден"}
 
     return WatchlistItem.objects.filter(user=user).select_related("coin")
+
+def get_market_stats():
+    last = Snapshot.objects.last()
+    if not last:
+        return {"error": "Снимка нет!"}
+
+    status = CoinPrice.objects.filter(snapshot=last).aggregate(
+        min_price = Min("price"),
+        max_price = Max("price"),
+        avg_price = Avg("price")
+    )
+
+    return {
+        "snapshot_id": last.id,
+        "provider": last.provider,
+        "total_market_cap": last.total_market_cap,
+        **status
+    }
 
