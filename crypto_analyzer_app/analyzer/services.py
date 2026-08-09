@@ -82,3 +82,22 @@ def get_market_stats():
         **status
     }
 
+def get_top_movers(limit = 10):
+    last = Snapshot.objects.last()
+    if not last:
+        return {"error": "Снимков нет!"}
+
+    status = CoinPrice.objects.filter(snapshot=last).select_related("coin").order_by("-change_24h")[:limit]
+
+    return status
+
+
+def get_top_volume(limit=10):
+    last = Snapshot.objects.last()
+    if not last:
+        return {"error": "Снимков нет!"}
+
+    status = CoinPrice.objects.filter(snapshot=last).select_related("coin").order_by("-volume_24h")[:limit]
+
+    return status
+

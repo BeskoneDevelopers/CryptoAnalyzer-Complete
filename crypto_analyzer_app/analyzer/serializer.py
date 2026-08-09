@@ -58,3 +58,5 @@ class WatchlistOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = WatchlistItem
         fields = ["id", "coin", "added_at"]
+
+
