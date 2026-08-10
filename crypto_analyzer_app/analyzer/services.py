@@ -67,7 +67,7 @@ def get_watchlist(user):
 def get_market_stats():
     last = Snapshot.objects.last()
     if not last:
-        return {"error": "Снимка нет!"}
+        return {"error": "Снимков нет!"}
 
     status = CoinPrice.objects.filter(snapshot=last).aggregate(
         min_price = Min("price"),

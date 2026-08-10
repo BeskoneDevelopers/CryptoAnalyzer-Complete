@@ -63,37 +63,87 @@ class WatchlistAPI(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    class AnalyticsAPITest(TestCase):
+class AnalyticsAPITest(TestCase):
 
-        def setUp(self):
-            self.user = User.objects.create_user(username="tester", password="testpass123")
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="testpass123")
 
-        def test_market_stats_structure(self):
-            snapshot = Snapshot.objects.create(
-                privider="test",
-                total_coins=2,
-                total_market_cap=150001.00
-            )
-            coin = Coin.objects.create(name="Babkacoin", symbol="bkc")
-            CoinPrice.objects.create(
-                coin=coin,
-                snapshot=snapshot,
-                price=50001,
-                volume_24h=1000004,
-                change_24h=5.5)
-            response = self.client.get("/api/analytics/market-stats/")
-            self.assertEqual(response.status_code, 200)
+    def test_market_stats_structure(self):
+        snapshot = Snapshot.objects.create(
+            provider="test",
+            total_coins=2,
+            total_market_cap=150001.00
+        )
+        coin = Coin.objects.create(name="Babkacoin", symbol="bkc")
+        CoinPrice.objects.create(
+            coin=coin,
+            snapshot=snapshot,
+            price=50001,
+            volume_24h=1000004,
+            change_24h=5.5)
+        response = self.client.get("/api/analytics/market-stats/")
+        self.assertEqual(response.status_code, 200)
 
-            data = response.json()
-            self.assertEqual(data["snapshot_id"], snapshot.id)
-            self.assertEqual(data["provider"], "test")
-            self.assertEqual(data["min_price"], "50001.00000000")
-            self.assertEqual(data["max_price"], "50001.00000000")
-            self.assertEqual(data["total_market_cap"], "150001.00000000")
+        data = response.json()
+        self.assertEqual(data["snapshot_id"], snapshot.id)
+        self.assertEqual(data["provider"], "test")
+        self.assertEqual(data["min_price"], 50001.0)
+        self.assertEqual(data["max_price"], 50001.0)
+        self.assertEqual(data["total_market_cap"], 150001.0)
 
-        def test_market_stats(self):
-            response = self.client.get("/api/analytics/market-stats/")
-            self.assertEqual(response.status_code, 404)
-            self.assertEqual("error", response.json())
+    def test_market_stats_empty(self):
+        response = self.client.get("/api/analytics/market-stats/")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"], "Снимков нет!")
 
 
+    def test_top_movers(self):
+        snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=100)
+        ntc = Coin.objects.create(name="Nitcoin", symbol="ntc")
+        pep = Coin.objects.create(name="Pepecoin", symbol="pep")
+
+        CoinPrice.objects.create(coin=ntc, snapshot=snapshot, price=200, volume_24h=1, change_24h=5.0)
+        CoinPrice.objects.create(coin=pep, snapshot=snapshot, price=200, volume_24h=2, change_24h=10.0)
+
+        response = self.client.get("/api/analytics/top-movers/")
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]["coin_symbol"], "pep")
+        self.assertEqual(data[1]["coin_symbol"], "ntc")
+
+    def test_volume_toper_empty(self):
+        response = self.client.get("/api/analytics/volume-leaders/")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"], "Снимков нет!")
+
+    def test_coins_filter_price_range(self):
+        snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=100000)
+        ntc = Coin.objects.create(name="Nitcoin", symbol="ntc")
+        pep = Coin.objects.create(name="Pepecoin", symbol="pep")
+
+        CoinPrice.objects.create(coin=ntc, snapshot=snapshot, price=50000, volume_24h=1, change_24h=1)
+        CoinPrice.objects.create(coin=pep, snapshot=snapshot, price=2, volume_24h=1, change_24h=1)
+
+        response = self.client.get("/api/coins/?min_price=100")
+        self.assertEqual(response.status_code, 200)
+        results = response.json()
+        if isinstance(results, list):
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0]["symbol"], "ntc")
+        else:
+            self.assertEqual(len(results["results"]), 1)
+            self.assertEqual(results["results"][0]["symbol"], "ntc")
+
+        response = self.client.get("/api/coins/?max_price=50")
+        self.assertEqual(response.status_code, 200)
+        results = response.json()
+        if isinstance(results, list):
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0]["symbol"], "pep")
+        else:
+            self.assertEqual(len(results["results"]), 1)
+            self.assertEqual(results["results"][0]["symbol"], "pep")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["symbol"], "pep")
