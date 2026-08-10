@@ -26,8 +26,8 @@ class CsvReporter(BaseReporter):
             writer.writerow(["Top Gainers"])
             writer.writerow(["Name", "Symbol", "Price", "24h Change"])
             for coin in gainers:
-                price = f"{coin.current_price:,.2f}" if coin.current_price else "Данных нет"
-                change = f"+{coin.price_change_for_24h:.2f}%" if coin.price_change_for_24h else "Данных нет"
+                price = f"{coin.current_price:,.2f}" if coin.current_price is not None else "Данных нет"
+                change = f"+{coin.price_change_for_24h:.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
                 writer.writerow([coin.name, coin.symbol, price, change])
             writer.writerow([])
 

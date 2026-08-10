@@ -37,8 +37,8 @@ class ConsoleReporter(BaseReporter):
         gainers_table.add_column("24H Change", style="green", justify="right")
 
         for coin in gainers:
-            change_str = f"+{coin.price_change_for_24h:.2f}%" if coin.price_change_for_24h else "Данных нет"
-            price_str = f"${coin.current_price:,.2f}" if coin.current_price else "Данных нет"
+            change_str = f"+{coin.price_change_for_24h:.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
+            price_str = f"${coin.current_price:,.2f}" if coin.current_price is not None else "Данных нет"
 
             gainers_table.add_row(
                 coin.name,
@@ -61,8 +61,8 @@ class ConsoleReporter(BaseReporter):
         losers_table.add_column("24H Change", style="red", justify="right")
 
         for coin in losers:
-            change_str = f"{coin.price_change_for_24h:.2f}%" if coin.price_change_for_24h else "Данных нет"
-            price_str = f"${coin.current_price:,.2f}" if coin.current_price else "Данных нет"
+            change_str = f"{coin.price_change_for_24h:.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
+            price_str = f"${coin.current_price:,.2f}" if coin.current_price is not None else "Данных нет"
 
             losers_table.add_row(
                 coin.name,

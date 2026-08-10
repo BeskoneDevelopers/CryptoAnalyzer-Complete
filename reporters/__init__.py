@@ -9,6 +9,6 @@ def get_reporter(output: str) -> BaseReporter:
     elif output == "json":
         return JsonReporter()
     elif output == "csv":
-        return CsvReporter
+        return CsvReporter()
     else:
         raise ValueError(f"Неизвестный формат - {output}")

@@ -30,23 +30,26 @@ class Coin:
             line += " | 24H: Данные отсутствуют"
         return line
 
-    def __lt__(self, other: "Coin"): # - lt сравнивает - "<"
+    def _compare_change(self, other: "Coin"):
         if not isinstance(other, Coin):
             return NotImplemented
-
         self_change = self.price_change_for_24h or 0
         other_change = other.price_change_for_24h or 0
+        return self_change, other_change
 
-        return self_change < other_change
+
+
+    def __lt__(self, other: "Coin"): # - lt сравнивает - "<"
+        se, ot = self._compare_change(other)
+        return se < ot if isinstance(se, float) else NotImplemented
 
     def __gt__(self, other): # - gt сравнивает ">"
-        if not isinstance(other, Coin):
-            return NotImplemented
+        se, ot = self._compare_change(other)
+        return se > ot if isinstance(se, float) else NotImplemented
 
-        self_change = self.price_change_for_24h or 0
-        other_change = other.price_change_for_24h or 0
-
-        return self_change > other_change
+    def __post_init__(self):
+        if self.current_price is not None and self.current_price < 0:
+            raise ValueError(f"Price cannot be negative: {self.current_price}")
 
     def compare_by_market_cap(self, other: "Coin"): # аналог lt но сравниваем рыночную капитализвцию
         if not isinstance(other, Coin):
@@ -56,6 +59,7 @@ class Coin:
         other_change = other.market_cap or 0
 
         return self_change < other_change
+
 
     @classmethod
     def from_dict(cls, data: dict, source: str = "coingecko") -> "Coin":
@@ -75,7 +79,7 @@ class Coin:
                 symbol=data.get("symbol", "None"),
                 current_price=data.get("quote", {}).get("USD", {}).get("price"),
                 total_volume=data.get("quote", {}).get("USD", {}).get("volume_24h"),
-                market_cap=data.get("cmc_rank"),
+                market_cap=data.get("quote", {}).get("USD", {}).get("market_cap"),
                 price_change_for_24h=data.get("quote", {}).get("USD", {}).get("percent_change_24h")
             )
         else:

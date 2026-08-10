@@ -20,10 +20,10 @@ class CryptoPortfolio:
         return len(self._coin)
 
     def get_top_gainers(self, count: int = 3):
-        return sorted(self._coin, key=lambda coins: coins.price_change_for_24h or float("-inf"), reverse=True)[:count]
+        return sorted(self._coin, key=lambda coins: coins.price_change_for_24h if coins.price_change_for_24h is not None else float("-inf"), reverse=True)[:count]
 
     def get_top_losers(self, count: int = 3):
-        return sorted(self._coin, key=lambda coins: coins.price_change_for_24h or float("-inf"))[:count]
+        return sorted(self._coin, key=lambda coins: coins.price_change_for_24h if coins.price_change_for_24h is not None else float("-inf"))[:count]
 
     def get_highest_volume(self):
         return max(self._coin, key=lambda coins: coins.total_volume or 0)
