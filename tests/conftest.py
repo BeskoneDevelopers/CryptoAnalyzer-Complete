@@ -70,7 +70,7 @@ def mock_coingecko_response():
     return [
         {
             "name": "Bitcoin",
-            "symbol": "btc",
+            "symbol": "BTC",
             "current_price": 62000.0,
             "total_volume": 35000000000.0,
             "market_cap": 1200000000000.0,
@@ -78,7 +78,7 @@ def mock_coingecko_response():
         },
         {
             "name": "Ethereum",
-            "symbol": "eth",
+            "symbol": "ETH",
             "current_price": 3400.0,
             "total_volume": 15000000000.0,
             "market_cap": 400000000000.0,
@@ -86,7 +86,7 @@ def mock_coingecko_response():
         },
         {
             "name": "Bobrcoin",
-            "symbol": "brc",
+            "symbol": "BRC",
             "current_price": 54300.0,
             "total_volume": 14000000000.0,
             "market_cap": 432000000000.0,
