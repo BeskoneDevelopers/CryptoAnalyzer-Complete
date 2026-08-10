@@ -74,17 +74,17 @@ class Analyzer:
         total_cap = sum(coin.get('market_cap', 0) or 0 for coin in self.data)
 
         self.result = {
-            "generate_AT": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "total_coins": len(self.data),
-            "total_market_cap": total_cap,
-            "top_coin": [
+            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "total_coins_analyzed": len(self.data),
+            "total_market_cap_usd": total_cap,
+            "top_gainers": [
                 {
                     "name": coin["name"],
                     "symbol": coin["symbol"],
                     "change_24h": coin.get("price_change_percentage_24h", 0)
                 } for coin in top_coin
             ],
-            "top_down_coin": [
+            "top_losers": [
                 {
                     "name": coin["name"],
                     "symbol": coin["symbol"],
@@ -94,7 +94,7 @@ class Analyzer:
             "highest_volume": {
                     "name": highest_volume["name"],
                     "symbol": highest_volume["symbol"],
-                    "volume": highest_volume.get("total_volume", 0)
+                    "volume_usd": highest_volume.get("total_volume", 0)
                 }
         }
 
@@ -120,7 +120,7 @@ class Analyzer:
     def sweet_table(self):
         top_table = self._build_coin_table(
             "Топ 3 лидера роста",
-            self.result["top_coin"],
+            self.result["top_gainers"],
             "green",
             "green"
         )
@@ -128,7 +128,7 @@ class Analyzer:
 
         down_table = self._build_coin_table(
             "Топ 3 лидера падения",
-            self.result["top_down_coin"],
+            self.result["top_losers"],
             "red",
             "red"
         )
@@ -138,12 +138,12 @@ class Analyzer:
         self.console.print(Panel(
             f"[bold]Максимальный объем торгов[/bold]\n"
             f"Монета: [cyan]{value['name']}[/cyan] ([yellow]{value['symbol']}[/yellow])\n"
-            f"Объем: [green]${value['volume']:,.0f}[/green]",
+            f"Объем: [green]${value['volume_usd']:,.0f}[/green]",
             border_style="blue"
         ))
 
         # Сумма капитализации
-        total_cap = self.result["total_market_cap"]
+        total_cap = self.result["total_market_cap_usd"]
         self.console.print(Panel(
             f"[bold]Суммарная капитализация топ-50[/bold]\n"
             f"[green]{total_cap}[/green]",
