@@ -1,7 +1,6 @@
 from models import CryptoPortfolio
 
-from reporters import JsonReporter, CsvReporter, ConsoleReporter
-
+from reporters import JsonReporter, CsvReporter, ConsoleReporter, get_reporter
 
 import json
 
@@ -13,7 +12,8 @@ class TestJsonReporter:
 
     def test_json_reporter(self, sample_coins, tmp_path):
         filepath = tmp_path / "test_mega_report.json"
-        reporter = JsonReporter(filename=str(filepath))
+        reporter = get_reporter("json")
+        reporter.filename = str(filepath)
 
         portfolio = CryptoPortfolio(sample_coins)
         reporter.report(portfolio, "TestJsonProvider", top_count=3)
@@ -37,7 +37,8 @@ class TestJsonReporter:
 class TestCsvReporter:
     def test_csv_reporter(self, sample_coins, tmp_path):
         file_path = tmp_path / "test_csv_report.csv"
-        reporter = CsvReporter(filename=str(file_path))
+        reporter = get_reporter("csv")
+        reporter.filename = str(file_path)
 
         portfolio = CryptoPortfolio(sample_coins)
         reporter.report(portfolio, "TestCsvProvider", top_count=3)

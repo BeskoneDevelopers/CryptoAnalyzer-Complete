@@ -33,6 +33,24 @@ class TestCoinGeckoProvider:
             with pytest.raises(HTTPError):
                 provider.fetch_top_coins()
 
+    def test_retry_decorator(self, mock_coingecko_response):
+        provider = CoinGeckoProvider()
+        call_count = [0]
+
+        def flaky_response(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] < 3:
+                raise ConnectionError("Temporary failure")
+            return mock_coingecko_response
+
+        with requests_mock.Mocker() as mock:
+            mock.get(CoinGeckoProvider.URL_API, json=flaky_response)
+            coins = provider.fetch_top_coins(limit=3)
+
+        assert call_count[0] == 3
+        assert len(coins) == 3
+
+
 class TestCoinMarketProvider:
     def test_fetch_top_coins(self, mock_coinmarket_response, monkeypatch):
         monkeypatch.setenv("API_KEY", "ugi_vugi")
@@ -50,3 +68,6 @@ class TestCoinMarketProvider:
         assert coins[0].name == "Bitcoin"
         assert coins[0].symbol == "BTC"
         assert coins[0].price_change_for_24h == 2.5
+
+
+

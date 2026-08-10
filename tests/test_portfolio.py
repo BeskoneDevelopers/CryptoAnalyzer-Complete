@@ -35,7 +35,18 @@ class TestPortfolioCreation:
     def test_empty_portfolio_analysis(self):
         portfolio = CryptoPortfolio()
 
+        assert portfolio.get_top_gainers() == []
         assert portfolio.get_top_losers() == []
-        assert portfolio.get_top_losers() == []
-        assert portfolio.get_highest_volume() == None
+        assert portfolio.get_highest_volume() is None
         assert portfolio.get_total_market_cap() == 0
+
+    def test_iteration(self, sample_coins):
+        portfolio = CryptoPortfolio(sample_coins)
+        symbols = [coin.symbol for coin in portfolio]
+        assert symbols == ["BTC", "BRC", "EFT", "TMS", "ETH"]
+
+    def test_getitem(self, sample_coins):
+        portfolio = CryptoPortfolio(sample_coins)
+        assert portfolio["BTC"].name == "Bitcoin"
+        with pytest.raises(KeyError):
+            _ = portfolio["XYX"]
