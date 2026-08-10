@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 from analyzer.models import WatchlistItem
 
+from analyzer.models import Snapshot, CoinPrice
+
 User = get_user_model()
 
 class WatchlistAPI(TestCase):
@@ -60,3 +62,38 @@ class WatchlistAPI(TestCase):
             )
 
         self.assertEqual(response.status_code, 200)
+
+    class AnalyticsAPITest(TestCase):
+
+        def setUp(self):
+            self.user = User.objects.create_user(username="tester", password="testpass123")
+
+        def test_market_stats_structure(self):
+            snapshot = Snapshot.objects.create(
+                privider="test",
+                total_coins=2,
+                total_market_cap=150001.00
+            )
+            coin = Coin.objects.create(name="Babkacoin", symbol="bkc")
+            CoinPrice.objects.create(
+                coin=coin,
+                snapshot=snapshot,
+                price=50001,
+                volume_24h=1000004,
+                change_24h=5.5)
+            response = self.client.get("/api/analytics/market-stats/")
+            self.assertEqual(response.status_code, 200)
+
+            data = response.json()
+            self.assertEqual(data["snapshot_id"], snapshot.id)
+            self.assertEqual(data["provider"], "test")
+            self.assertEqual(data["min_price"], "50001.00000000")
+            self.assertEqual(data["max_price"], "50001.00000000")
+            self.assertEqual(data["total_market_cap"], "150001.00000000")
+
+        def test_market_stats(self):
+            response = self.client.get("/api/analytics/market-stats/")
+            self.assertEqual(response.status_code, 404)
+            self.assertEqual("error", response.json())
+
+
