@@ -1,4 +1,4 @@
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from analyzer.models import Coin, Snapshot, CoinPrice
 from django.db.models import Sum
 from django.conf import settings
@@ -17,11 +17,9 @@ class Command(BaseCommand):
         limit = options["limit"]
 
         if provider == "coinmarketcap" and not settings.CMC_API_KEY:
-            self.stderr.write("Отсутствует API ключ в файле .env")
-            return
+            raise CommandError("Отсутствует API ключ в файле .env")
 
-        coins_data = self.fetch_data(provider,limit)
-
+        coins_data = self.fetch_data(provider, limit)
 
         snapshot = Snapshot.objects.create(
             provider=provider,
@@ -29,32 +27,25 @@ class Command(BaseCommand):
             total_market_cap=0
         )
 
-
         for coin_data in coins_data:
-            name = coin_data.get("name")
-            symbol = coin_data.get("symbol")
-            current_price = coin_data.get('current_price', 0)
-            volume = coin_data.get('total_volume', 0)
-            change = coin_data.get('price_change_percentage_24h', 0)
-
-            coin, created = Coin.objects.get_or_create(
-                symbol=symbol,
-                defaults={"name": name}
+            coin, _ = Coin.objects.get_or_create(
+                symbol=coin_data.get("symbol"),
+                defaults={"name": coin_data.get("name", "")}
             )
-
             CoinPrice.objects.create(
                 coin=coin,
                 snapshot=snapshot,
-                price=current_price or 0,
-                volume_24h=volume or 0,
-                change_24h=change or 0
+                price=coin_data.get('current_price') or 0,
+                volume_24h=coin_data.get('total_volume') or 0,
+                change_24h=coin_data.get('price_change_percentage_24h') or 0,
+                market_cap=coin_data.get('market_cap') or 0
             )
 
-        total_market_cap = CoinPrice.objects.filter(snapshot=snapshot).aggregate(
-            total=Sum('price')) ['total'] or 0
-        snapshot.total_market_cap = total_market_cap
+        total_cap = CoinPrice.objects.filter(snapshot=snapshot).aggregate(
+            total=Sum('market_cap')
+        )['total'] or 0
+        snapshot.total_market_cap = total_cap
         snapshot.save()
-
 
         self.stdout.write(f"Создание snapshot - {snapshot.id}")
 
@@ -67,45 +58,44 @@ class Command(BaseCommand):
                 "per_page": limit,
                 "page": 1
             }
-
             with requests.Session() as session:
                 response = session.get(url, params=params)
                 response.raise_for_status()
                 raw_data = response.json()
-                return raw_data
+                normalized = []
+                for item in raw_data:
+                    normalized.append({
+                        "name": item["name"],
+                        "symbol": item["symbol"],
+                        "current_price": item["current_price"],
+                        "total_volume": item["total_volume"],
+                        "price_change_percentage_24h": item.get("price_change_percentage_24h"),
+                        "market_cap": item.get("market_cap")
+                    })
+                return normalized
 
         elif provider == "coinmarketcap":
             url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest"
-
-            header = {
+            headers = {
                 "X-CMC_PRO_API_KEY": settings.CMC_API_KEY,
                 "Accept": "application/json"
             }
-
-            params = {
-                "convert": "USD",
-                "limit": limit
-            }
-
+            params = {"convert": "USD", "limit": limit}
             with requests.Session() as session:
-                session.headers.update(header)
+                session.headers.update(headers)
                 response = session.get(url, params=params)
                 response.raise_for_status()
                 raw_data = response.json()
-
                 normalized = []
                 for item in raw_data["data"]:
                     normalized.append({
                         "name": item["name"],
-                        "symbol": item["symbol"].lower(),
+                        "symbol": item["symbol"],
                         "current_price": item["quote"]["USD"]["price"],
                         "total_volume": item["quote"]["USD"]["volume_24h"],
-                        "price_change_percentage_24h": item["quote"]["USD"]["percent_change_24h"]
+                        "price_change_percentage_24h": item["quote"]["USD"]["percent_change_24h"],
+                        "market_cap": item["quote"]["USD"]["market_cap"]
                     })
-
                 return normalized
-
         else:
-            self.stderr.write(f"Неизвестный провайдер - {provider}")
-            return []
-
+            raise CommandError(f"Неизвестный провайдер: {provider}")
