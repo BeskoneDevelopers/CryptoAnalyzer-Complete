@@ -18,7 +18,7 @@ class JsonReporter(BaseReporter):
         highest = portfolio.get_highest_volume()
         
         data = {
-            "generate_at": self.generate_at,
+            "generated_at": self.generate_at,
             "provider": provider_name,
             "total_coins": len(portfolio),
             "total_market_cap": portfolio.get_total_market_cap(),

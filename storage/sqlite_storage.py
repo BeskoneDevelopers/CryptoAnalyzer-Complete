@@ -6,9 +6,7 @@ class SqliteStorage(BaseStorage):
     def __init__(self, db_path: str = "crypto_analysis.db"):
         self.db_path = db_path
         self.conn = sqlite3.connect(db_path)
-        print(f"DB path: {self.db_path}")
         self._init_db()
-        print("Tables created")
 
     def _init_db(self):
         self.conn.execute("""
@@ -58,9 +56,7 @@ class SqliteStorage(BaseStorage):
                 coin.get("price"),
                 coin.get("volume_24h"),
                 coin.get("24h_change")
-
             ))
-
         self.conn.executemany(
             """
             INSERT INTO coin_price (cadr_id, name, symbol, price, volume_24h, "24h_change")
@@ -68,6 +64,7 @@ class SqliteStorage(BaseStorage):
             """,
             coin_rows
         )
+        self.conn.commit()
 
     def list_cadr(self):
         rows = self.conn.execute(
@@ -79,11 +76,13 @@ class SqliteStorage(BaseStorage):
         ).fetchall()
         return rows
 
-    def compare_cadr(self, id1: int, id2):
+    def compare_cadr(self, id1: int, id2: int):
         rows = self.conn.execute(
             """
-            SELECT a.symbol, a.price as old_price, b.price as new_price, (b.price - a.price) as diff
-            FROM coin_price a JOIN coin_price b ON a.symbol = b.symbol
+            SELECT a.symbol, a.price as old_price, b.price as new_price, 
+                   (b.price - a.price) as diff
+            FROM coin_price a 
+            JOIN coin_price b ON a.symbol = b.symbol AND a.cadr_id != b.cadr_id
             WHERE a.cadr_id = ? AND b.cadr_id = ?
             """,
             (id1, id2)
@@ -113,7 +112,7 @@ class SqliteStorage(BaseStorage):
             LIMIT ?
             """,
             (limit,)
-         ).fetchall()
+        ).fetchall()
         return rows
 
     def get_coin_history(self, symbol: str):
@@ -129,4 +128,11 @@ class SqliteStorage(BaseStorage):
         return rows
 
     def close(self):
-        self.conn.close()
+        if self.conn:
+            self.conn.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()

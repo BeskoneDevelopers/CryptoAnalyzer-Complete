@@ -54,7 +54,10 @@ def analyze(
 @app.command()
 def list_cadr():
     console = Console()
-    storage = SqliteStorage()
+    if settings.storage == StorageType.SQLITE:
+        storage = SqliteStorage()
+    else:
+        storage = JsonStorage()
     cadr = storage.list_cadr()
 
     if not cadr:
@@ -81,7 +84,10 @@ def list_cadr():
 @app.command()
 def compare_cadr(id1: int, id2: int):
     console = Console()
-    storage = SqliteStorage()
+    if settings.storage == StorageType.SQLITE:
+        storage = SqliteStorage()
+    else:
+        storage = JsonStorage()
     rows = storage.compare_cadr(id1, id2)
 
     if not rows:
