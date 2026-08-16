@@ -76,3 +76,4 @@ class VolumeTopView(APIView):
         serializer = CoinPriceAnalyticSerializer(toper, many=True)
         return Response(serializer.data)
 
+
