@@ -147,3 +147,29 @@ class AnalyticsAPITest(TestCase):
             self.assertEqual(results["results"][0]["symbol"], "pep")
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["symbol"], "pep")
+
+class CeleryAPITest(TestCase):
+    def test_start_task_snapshot(self):
+        url = "/api/snapshots/start/"
+        response = self.client.post(
+            url,
+            data={"provider": "test", "limit": 2},
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 202)
+        result = response.json()
+        self.assertIn("task_id", result)
+
+    def test_task_status(self):
+        url = "/api/snapshots/start/"
+        response = self.client.post(
+            url,
+            data={"provider": "test", "limit": 2},
+            content_type="application/json"
+        )
+        task_id = response.json()["task_id"]
+
+        status_url = f"/api/snapshots/tasks/{task_id}/"
+        status_response = self.client.get(status_url)
+        self.assertEqual(status_response.status_code, 200)
+        self.assertIn("status", status_response.json())
