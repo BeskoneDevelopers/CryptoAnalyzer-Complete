@@ -1,4 +1,4 @@
-
+from celery.result import AsyncResult
 from rest_framework.decorators import action
 from  rest_framework.response import Response
 from django_filters import rest_framework as filters
@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Snapshot, Coin, WatchlistItem
 from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, WatchlistInputSerializer, WatchlistOutputSerializer, CoinPriceAnalyticSerializer
 from .services import remove_from_watchlist, get_market_stats, get_top_movers, get_top_volume
+from .tasks import fetch_snapshot_task
 
 
 class SnapshotViewSet(ModelViewSet):
@@ -77,3 +78,17 @@ class VolumeTopView(APIView):
         return Response(serializer.data)
 
 
+class StartSnapshotTaskView(APIView):
+    def post(self, request):
+        provider = request.data.get("provider", "coingecko")
+        limit = request.data.get("limit", 3)
+        task = fetch_snapshot_task.delay(provider, limit)
+        return Response({"task_id": task.id}, status=202)
+
+class TaskStatusView(APIView):
+    def get(self, request, task_id):
+        result = AsyncResult(task_id)
+        return Response({
+            "status": result.status,
+            "result": result.result
+        })
