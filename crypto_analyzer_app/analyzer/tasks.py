@@ -4,6 +4,10 @@ from django.conf import settings
 
 from analyzer.models import Snapshot, Coin, CoinPrice
 from django.db.models import Sum
+from django.db.models.functions import Trunc
+
+from datetime import timedelta
+from django.utils import timezone
 
 
 def _fetch_data(provider, limit):
@@ -55,12 +59,22 @@ def _fetch_data(provider, limit):
 
 
 
-@shared_task
-def fetch_snapshot_task(provider: str = "coingecko", limit: int = 5):
+@shared_task(bind=True, max_retries=3, retry_backoff=True, retry_backoff_max=300)
+def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
     if provider == "coinmarketcap" and not settings.CMC_API_KEY:
         return {"error": "Отсутствует API ключ"}
 
-    coins_data = _fetch_data(provider, limit)
+    recent = Snapshot.objects.filter(
+        provider=provider,
+        created_at__gte=timezone.now() - timedelta(minutes=5)
+    ).first()
+    if recent:
+        return {"snapshot_id": recent.id, "already_exists": True}
+
+    try:
+        coins_data = _fetch_data(provider, limit)
+    except requests.exceptions.RequestException as exc:
+        raise self.retry(exc=exc)
 
     snapshot = Snapshot.objects.create(
         provider=provider,
