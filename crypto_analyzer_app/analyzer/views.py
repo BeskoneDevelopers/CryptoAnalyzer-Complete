@@ -1,16 +1,21 @@
 from celery.result import AsyncResult
-from rest_framework.decorators import action
-from  rest_framework.response import Response
 from django_filters import rest_framework as filters
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from rest_framework.viewsets import ModelViewSet
 
-from rest_framework.permissions import IsAuthenticated
-
-from .models import Snapshot, Coin, WatchlistItem
-from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, WatchlistInputSerializer, WatchlistOutputSerializer, CoinPriceAnalyticSerializer
-from .services import remove_from_watchlist, get_market_stats, get_top_movers, get_top_volume
+from .models import Coin, Snapshot, WatchlistItem
+from .serializer import (
+    CoinFilter,
+    CoinPriceAnalyticSerializer,
+    CoinSerializer,
+    SnapshotSerializer,
+    WatchlistInputSerializer,
+    WatchlistOutputSerializer,
+)
+from .services import get_market_stats, get_top_movers, get_top_volume, remove_from_watchlist
 from .tasks import fetch_snapshot_task
 
 

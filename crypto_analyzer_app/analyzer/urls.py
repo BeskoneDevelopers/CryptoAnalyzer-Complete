@@ -1,7 +1,16 @@
 from django.urls import path
-
 from rest_framework.routers import DefaultRouter
-from .views import SnapshotViewSet, CoinViewSet, WatchlistViewSet, MarketStatusView, TopMoversView, VolumeTopView, StartSnapshotTaskView, TaskStatusView
+
+from .views import (
+    CoinViewSet,
+    MarketStatusView,
+    SnapshotViewSet,
+    StartSnapshotTaskView,
+    TaskStatusView,
+    TopMoversView,
+    VolumeTopView,
+    WatchlistViewSet,
+)
 
 router = DefaultRouter()
 router.register("snapshots", SnapshotViewSet, basename="snapshots")

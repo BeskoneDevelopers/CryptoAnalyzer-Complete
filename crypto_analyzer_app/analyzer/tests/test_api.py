@@ -1,13 +1,10 @@
-from django.test import TestCase
-from django.contrib.auth import get_user_model
-from django.db import reset_queries
-from analyzer.models import Coin
-
 from unittest.mock import patch
 
-from analyzer.models import WatchlistItem
+from django.contrib.auth import get_user_model
+from django.db import reset_queries
+from django.test import TestCase
 
-from analyzer.models import Snapshot, CoinPrice
+from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
 
 User = get_user_model()
 

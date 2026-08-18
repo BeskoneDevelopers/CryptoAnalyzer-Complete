@@ -1,9 +1,10 @@
-from django.core.management.base import BaseCommand
-from analyzer.models import Coin, Snapshot, CoinPrice
-from django.db.models import Sum
-from django.conf import settings
-
 import requests
+from django.conf import settings
+from django.core.management.base import BaseCommand
+from django.db.models import Sum
+
+from analyzer.models import Coin, CoinPrice, Snapshot
+
 
 class Command(BaseCommand):
     help = "Извлекает крипто-данные и создает снимок"

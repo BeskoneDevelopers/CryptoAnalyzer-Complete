@@ -1,6 +1,7 @@
 from django.contrib import admin
 
-from .models import CoinPrice, Coin, Snapshot
+from .models import Coin, CoinPrice, Snapshot
+
 
 @admin.register(Coin)
 class CoinAdmin(admin.ModelAdmin):

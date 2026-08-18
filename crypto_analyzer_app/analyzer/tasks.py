@@ -1,13 +1,12 @@
+from datetime import timedelta
+
 import requests
 from celery import shared_task
 from django.conf import settings
-
-from analyzer.models import Snapshot, Coin, CoinPrice
 from django.db.models import Sum
-from django.db.models.functions import Trunc
-
-from datetime import timedelta
 from django.utils import timezone
+
+from analyzer.models import Coin, CoinPrice, Snapshot
 
 
 def _fetch_data(provider, limit):

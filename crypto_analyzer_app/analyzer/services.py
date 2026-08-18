@@ -1,17 +1,13 @@
-from django.conf import settings
-from django.db.models import Sum, Avg, Max, Min
+from typing import Any
 
 import requests
+from django.contrib.auth.models import User
+from django.db.models import Avg, Max, Min, QuerySet
 
-from analyzer.models import Coin, Snapshot, CoinPrice, WatchlistItem
+from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
 
-def get_provider():
-    if settings.EXCHANGE_PROVIDER == "coingecko":
-        return coingecko_fetch_function
-    elif settings.EXCHANGE_PROVIDER == "coinmarketcap":
-        return coinmarketcap_fetch_function
 
-def validate_symbol(symbol):
+def validate_symbol(symbol: str) -> dict[str, str] | bool:
     search_symbol = f"https://api.coingecko.com/api/v3/search?query={symbol}"
 
     with requests.Session() as session:
@@ -26,13 +22,13 @@ def validate_symbol(symbol):
 
 
 
-def add_to_watchlist(user, symbol):
+def add_to_watchlist(user: User, symbol: str) -> dict[str, str] | WatchlistItem:
 
     if not symbol:
         return {"error": f"{symbol} не передан"}
 
     valid = validate_symbol(symbol)
-    if valid:
+    if valid and isinstance(valid, dict):
         coin, created = Coin.objects.get_or_create(
             symbol=symbol,
             defaults={"name": valid.get("name")}
@@ -45,7 +41,7 @@ def add_to_watchlist(user, symbol):
     else:
         return {"error": f"Монета с символом - {symbol} не найдена"}
 
-def remove_from_watchlist(user, symbol):
+def remove_from_watchlist(user: User, symbol: str) -> dict[str, Any]:
     if not symbol or not user:
         return {"error": "Передана неполная информация"}
 
@@ -58,14 +54,14 @@ def remove_from_watchlist(user, symbol):
         return {"valid": True, "message": "Данные успешно удалены"}
     return {"valid": False, "message": "Данные не найдены"}
 
-def get_watchlist(user):
+def get_watchlist(user: User) -> dict[str, str] | QuerySet[WatchlistItem]:
     if not user:
         return {"error": f"Пользователь {user} не найден"}
 
     return WatchlistItem.objects.filter(user=user).select_related("coin")
 
-def get_market_stats():
-    last = Snapshot.objects.last()
+def get_market_stats() -> dict[str, Any]:
+    last: Snapshot | None = Snapshot.objects.last()
     if not last:
         return {"error": "Снимков нет!"}
 
@@ -76,13 +72,13 @@ def get_market_stats():
     )
 
     return {
-        "snapshot_id": last.id,
+        "snapshot_id": last.pk,
         "provider": last.provider,
         "total_market_cap": last.total_market_cap,
         **status
     }
 
-def get_top_movers(limit = 10):
+def get_top_movers(limit: int = 10) -> dict[str, str] | QuerySet[CoinPrice]:
     last = Snapshot.objects.last()
     if not last:
         return {"error": "Снимков нет!"}
@@ -92,7 +88,7 @@ def get_top_movers(limit = 10):
     return status
 
 
-def get_top_volume(limit=10):
+def get_top_volume(limit: int = 10) -> dict[str, str] | QuerySet[CoinPrice]:
     last = Snapshot.objects.last()
     if not last:
         return {"error": "Снимков нет!"}

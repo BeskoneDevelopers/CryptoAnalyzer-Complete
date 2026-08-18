@@ -1,9 +1,8 @@
-from rest_framework import serializers
-from .models import Coin, CoinPrice, Snapshot, WatchlistItem
-
 from django_filters import rest_framework as filters
+from rest_framework import serializers
 
-from .services import validate_symbol, add_to_watchlist
+from .models import Coin, CoinPrice, Snapshot, WatchlistItem
+from .services import add_to_watchlist, validate_symbol
 
 # class CoinFilter(filters.FilterSet):
 #     symbol = filters.CharFilter(lookup_expr="iexact")

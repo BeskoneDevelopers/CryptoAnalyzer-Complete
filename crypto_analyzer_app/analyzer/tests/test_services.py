@@ -1,18 +1,12 @@
-import pytest
-from django.db.models.expressions import result
-from django.test import TestCase
-from unittest.mock import patch, Mock
-
-from django.contrib.auth import get_user_model
-
-from analyzer.services import validate_symbol, add_to_watchlist, remove_from_watchlist
-from analyzer.models import Coin, WatchlistItem
+from unittest.mock import Mock, patch
 
 import requests
+from django.contrib.auth import get_user_model
+from django.test import TestCase
 
-from analyzer.models import Snapshot, CoinPrice
+from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
+from analyzer.services import add_to_watchlist, remove_from_watchlist, validate_symbol
 from analyzer.tasks import fetch_snapshot_task
-from redis.retry import Retry
 
 User = get_user_model()
 
