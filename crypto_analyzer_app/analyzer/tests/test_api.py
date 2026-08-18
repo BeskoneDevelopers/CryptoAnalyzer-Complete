@@ -1,24 +1,18 @@
-from django.test import TestCase
-from django.contrib.auth import get_user_model
-from django.db import reset_queries
-from analyzer.models import Coin
-
 from unittest.mock import patch
 
-from analyzer.models import WatchlistItem
+from django.contrib.auth import get_user_model
+from django.db import reset_queries
+from django.test import TestCase
 
-from analyzer.models import Snapshot, CoinPrice
+from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
 
 User = get_user_model()
 
-class WatchlistAPI(TestCase):
 
+class WatchlistAPI(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="tester", password="testpass123")
-        response = self.client.post("/api/token/",{
-            "username": "tester",
-            "password": "testpass123"
-        })
+        response = self.client.post("/api/token/", {"username": "tester", "password": "testpass123"})
         self.token = response.json()["access"]
         self.auth_header = f"Bearer {self.token}"
 
@@ -27,10 +21,7 @@ class WatchlistAPI(TestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_authenticated_access(self):
-        response = self.client.get(
-            "/api/watchlist/",
-            HTTP_AUTHORIZATION=self.auth_header
-        )
+        response = self.client.get("/api/watchlist/", HTTP_AUTHORIZATION=self.auth_header)
         self.assertEqual(response.status_code, 200)
 
     @patch("analyzer.serializer.validate_symbol")
@@ -38,10 +29,7 @@ class WatchlistAPI(TestCase):
         mock_validate.return_value = {"valid": True, "name": "Bitcoin"}
 
         response = self.client.post(
-            "/api/watchlist/",
-            {"symbol": "btc"},
-            content_type="application/json",
-            HTTP_AUTHORIZATION=self.auth_header
+            "/api/watchlist/", {"symbol": "btc"}, content_type="application/json", HTTP_AUTHORIZATION=self.auth_header
         )
 
         self.assertEqual(response.status_code, 201)
@@ -56,31 +44,19 @@ class WatchlistAPI(TestCase):
         reset_queries()
 
         with self.assertNumQueries(2):
-            response = self.client.get(
-                "/api/watchlist/",
-                HTTP_AUTHORIZATION=self.auth_header
-            )
+            response = self.client.get("/api/watchlist/", HTTP_AUTHORIZATION=self.auth_header)
 
         self.assertEqual(response.status_code, 200)
 
-class AnalyticsAPITest(TestCase):
 
+class AnalyticsAPITest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="tester", password="testpass123")
 
     def test_market_stats_structure(self):
-        snapshot = Snapshot.objects.create(
-            provider="test",
-            total_coins=2,
-            total_market_cap=150001.00
-        )
+        snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=150001.00)
         coin = Coin.objects.create(name="Babkacoin", symbol="bkc")
-        CoinPrice.objects.create(
-            coin=coin,
-            snapshot=snapshot,
-            price=50001,
-            volume_24h=1000004,
-            change_24h=5.5)
+        CoinPrice.objects.create(coin=coin, snapshot=snapshot, price=50001, volume_24h=1000004, change_24h=5.5)
         response = self.client.get("/api/analytics/market-stats/")
         self.assertEqual(response.status_code, 200)
 
@@ -95,7 +71,6 @@ class AnalyticsAPITest(TestCase):
         response = self.client.get("/api/analytics/market-stats/")
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()["error"], "Снимков нет!")
-
 
     def test_top_movers(self):
         snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=100)
@@ -148,25 +123,18 @@ class AnalyticsAPITest(TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["symbol"], "pep")
 
+
 class CeleryAPITest(TestCase):
     def test_start_task_snapshot(self):
         url = "/api/snapshots/start/"
-        response = self.client.post(
-            url,
-            data={"provider": "test", "limit": 2},
-            content_type="application/json"
-        )
+        response = self.client.post(url, data={"provider": "test", "limit": 2}, content_type="application/json")
         self.assertEqual(response.status_code, 202)
         result = response.json()
         self.assertIn("task_id", result)
 
     def test_task_status(self):
         url = "/api/snapshots/start/"
-        response = self.client.post(
-            url,
-            data={"provider": "test", "limit": 2},
-            content_type="application/json"
-        )
+        response = self.client.post(url, data={"provider": "test", "limit": 2}, content_type="application/json")
         task_id = response.json()["task_id"]
 
         status_url = f"/api/snapshots/tasks/{task_id}/"

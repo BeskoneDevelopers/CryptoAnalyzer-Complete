@@ -1,16 +1,21 @@
 from celery.result import AsyncResult
-from rest_framework.decorators import action
-from  rest_framework.response import Response
 from django_filters import rest_framework as filters
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from rest_framework.viewsets import ModelViewSet
 
-from rest_framework.permissions import IsAuthenticated
-
-from .models import Snapshot, Coin, WatchlistItem
-from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, WatchlistInputSerializer, WatchlistOutputSerializer, CoinPriceAnalyticSerializer
-from .services import remove_from_watchlist, get_market_stats, get_top_movers, get_top_volume
+from .models import Coin, Snapshot, WatchlistItem
+from .serializer import (
+    CoinFilter,
+    CoinPriceAnalyticSerializer,
+    CoinSerializer,
+    SnapshotSerializer,
+    WatchlistInputSerializer,
+    WatchlistOutputSerializer,
+)
+from .services import get_market_stats, get_top_movers, get_top_volume, remove_from_watchlist
 from .tasks import fetch_snapshot_task
 
 
@@ -25,8 +30,11 @@ class CoinViewSet(ModelViewSet):
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = CoinFilter
 
+
 class WatchlistViewSet(ModelViewSet):
-    permission_classes = [IsAuthenticated,]
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
     def get_serializer_class(self):
         if self.action in ("create", "delete_watchlist"):
@@ -59,6 +67,7 @@ class MarketStatusView(APIView):
             return Response(stats, status=404)
         return Response(stats)
 
+
 class TopMoversView(APIView):
     def get(self, request):
         move = get_top_movers()
@@ -67,6 +76,7 @@ class TopMoversView(APIView):
 
         serializer = CoinPriceAnalyticSerializer(move, many=True)
         return Response(serializer.data)
+
 
 class VolumeTopView(APIView):
     def get(self, request):
@@ -85,10 +95,8 @@ class StartSnapshotTaskView(APIView):
         task = fetch_snapshot_task.delay(provider, limit)
         return Response({"task_id": task.id}, status=202)
 
+
 class TaskStatusView(APIView):
     def get(self, request, task_id):
         result = AsyncResult(task_id)
-        return Response({
-            "status": result.status,
-            "result": result.result
-        })
+        return Response({"status": result.status, "result": result.result})
