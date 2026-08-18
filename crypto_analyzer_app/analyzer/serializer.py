@@ -11,6 +11,7 @@ from .services import add_to_watchlist, validate_symbol
 #         model = Coin
 #         fields = ["symbol"]
 
+
 class CoinFilter(filters.FilterSet):
     symbol = filters.CharFilter(lookup_expr="iexact")
     min_price = filters.NumberFilter(method="filter_min_price", field_name="min_price", label="max price")
@@ -20,14 +21,11 @@ class CoinFilter(filters.FilterSet):
         model = Coin
         fields = ["symbol", "min_price", "max_price"]
 
-    def _latest_coin_ids(self, price_lookup): #разабрать функцию
+    def _latest_coin_ids(self, price_lookup):  # разабрать функцию
         last = Snapshot.objects.last()
         if not last:
             return Coin.objects.none()
-        return CoinPrice.objects.filter(
-            snapshot=last,
-            **price_lookup
-        ).values_list("coin_id", flat=True)
+        return CoinPrice.objects.filter(snapshot=last, **price_lookup).values_list("coin_id", flat=True)
 
     def filter_max_price(self, queryset, name, value):
         coin_ids = self._latest_coin_ids({"price__lte": value})
@@ -36,8 +34,6 @@ class CoinFilter(filters.FilterSet):
     def filter_min_price(self, queryset, name, value):
         coin_ids = self._latest_coin_ids({"price__gte": value})
         return queryset.filter(id__in=coin_ids)
-
-
 
 
 class CoinPriceSerializer(serializers.ModelSerializer):
@@ -54,14 +50,12 @@ class CoinSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "symbol", "prices"]
 
 
-
 class SnapshotSerializer(serializers.ModelSerializer):
     coin_prices = CoinPriceSerializer(many=True, read_only=True)
 
     class Meta:
         model = Snapshot
         fields = ["id", "provider", "total_coins", "total_market_cap", "coin_prices"]
-
 
 
 class WatchlistInputSerializer(serializers.Serializer):
@@ -77,6 +71,7 @@ class WatchlistInputSerializer(serializers.Serializer):
         user = self.context["request"].user
         symbol = validated_data["symbol"]
         return add_to_watchlist(user, symbol)
+
 
 class WatchlistOutputSerializer(serializers.ModelSerializer):
     coin = serializers.StringRelatedField()

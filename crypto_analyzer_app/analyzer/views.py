@@ -30,8 +30,11 @@ class CoinViewSet(ModelViewSet):
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = CoinFilter
 
+
 class WatchlistViewSet(ModelViewSet):
-    permission_classes = [IsAuthenticated,]
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
     def get_serializer_class(self):
         if self.action in ("create", "delete_watchlist"):
@@ -64,6 +67,7 @@ class MarketStatusView(APIView):
             return Response(stats, status=404)
         return Response(stats)
 
+
 class TopMoversView(APIView):
     def get(self, request):
         move = get_top_movers()
@@ -72,6 +76,7 @@ class TopMoversView(APIView):
 
         serializer = CoinPriceAnalyticSerializer(move, many=True)
         return Response(serializer.data)
+
 
 class VolumeTopView(APIView):
     def get(self, request):
@@ -90,10 +95,8 @@ class StartSnapshotTaskView(APIView):
         task = fetch_snapshot_task.delay(provider, limit)
         return Response({"task_id": task.id}, status=202)
 
+
 class TaskStatusView(APIView):
     def get(self, request, task_id):
         result = AsyncResult(task_id)
-        return Response({
-            "status": result.status,
-            "result": result.result
-        })
+        return Response({"status": result.status, "result": result.result})

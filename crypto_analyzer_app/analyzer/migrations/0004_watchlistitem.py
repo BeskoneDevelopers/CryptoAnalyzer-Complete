@@ -6,25 +6,29 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('analyzer', '0003_alter_coinprice_coin'),
+        ("analyzer", "0003_alter_coinprice_coin"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='WatchlistItem',
+            name="WatchlistItem",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('added_at', models.DateTimeField(auto_now_add=True)),
-                ('coin', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tracked', to='analyzer.coin')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='watchlist_items', to=settings.AUTH_USER_MODEL)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("added_at", models.DateTimeField(auto_now_add=True)),
+                ("coin", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="tracked", to="analyzer.coin")),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, related_name="watchlist_items", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
             ],
             options={
-                'verbose_name_plural': 'list_items',
-                'indexes': [models.Index(fields=['user', 'coin'], name='analyzer_wa_user_id_b0d7b0_idx')],
-                'constraints': [models.UniqueConstraint(fields=('user', 'coin'), name='unique_user_coin')],
+                "verbose_name_plural": "list_items",
+                "indexes": [models.Index(fields=["user", "coin"], name="analyzer_wa_user_id_b0d7b0_idx")],
+                "constraints": [models.UniqueConstraint(fields=("user", "coin"), name="unique_user_coin")],
             },
         ),
     ]
