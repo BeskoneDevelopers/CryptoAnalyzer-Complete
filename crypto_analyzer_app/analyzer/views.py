@@ -1,14 +1,16 @@
 from celery.result import AsyncResult
-from django_filters import rest_framework as filters
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.decorators import action
+from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
-from .models import Coin, Snapshot, WatchlistItem
+from .models import Coin, CoinPrice, Snapshot, WatchlistItem
 from .permissions import IsAdminOrReadOnly
 from .serializer import (
     CoinFilter,
@@ -22,10 +24,18 @@ from .services import get_market_stats, get_top_movers, get_top_volume, remove_f
 from .tasks import fetch_snapshot_task
 
 
+class CoinPricePagination(CursorPagination):
+    page_size = 10
+    ordering = "-snapshot__created_at"
+
+
 class SnapshotViewSet(ReadOnlyModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     queryset = Snapshot.objects.prefetch_related("coin_prices").all()
     serializer_class = SnapshotSerializer
+    filter_backends = [OrderingFilter]
+    ordering_fields = ["created_at", "total_market_cap"]
+    ordering = ["-created_at"]
 
     @extend_schema(
         summary="Получение списка снимков рынка",
@@ -55,8 +65,15 @@ class CoinViewSet(ReadOnlyModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     queryset = Coin.objects.prefetch_related("prices").all()
     serializer_class = CoinSerializer
-    filter_backends = [filters.DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = CoinFilter
+    search_fields = ["symbol", "name"]
+
+    @action(detail=True, methods=["get"], pagination_class=CoinPricePagination)
+    def history(self, request, pk=None):
+        prices = CoinPrice.objects.filter(coin_id=pk)
+        serializer = CoinPriceAnalyticSerializer(prices, many=True)
+        return Response(serializer.data)
 
 
 class WatchlistViewSet(ModelViewSet):
