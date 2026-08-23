@@ -144,6 +144,7 @@ STATIC_URL = "static/"
 
 
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "analyzer.exceptions.custom_exception_handler",
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
     "DEFAULT_VERSION": "v1",
     "ALLOWED_VERSIONS": ["v1", "v2"],
