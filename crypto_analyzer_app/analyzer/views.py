@@ -4,9 +4,10 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from .models import Coin, Snapshot, WatchlistItem
+from .permissions import IsAdminOrReadOnly
 from .serializer import (
     CoinFilter,
     CoinPriceAnalyticSerializer,
@@ -19,12 +20,14 @@ from .services import get_market_stats, get_top_movers, get_top_volume, remove_f
 from .tasks import fetch_snapshot_task
 
 
-class SnapshotViewSet(ModelViewSet):
+class SnapshotViewSet(ReadOnlyModelViewSet):
+    permission_classes = [IsAdminOrReadOnly]
     queryset = Snapshot.objects.prefetch_related("coin_prices").all()
     serializer_class = SnapshotSerializer
 
 
-class CoinViewSet(ModelViewSet):
+class CoinViewSet(ReadOnlyModelViewSet):
+    permission_classes = [IsAdminOrReadOnly]
     queryset = Coin.objects.prefetch_related("prices").all()
     serializer_class = CoinSerializer
     filter_backends = [filters.DjangoFilterBackend]
@@ -89,6 +92,8 @@ class VolumeTopView(APIView):
 
 
 class StartSnapshotTaskView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def post(self, request):
         provider = request.data.get("provider", "coingecko")
         limit = request.data.get("limit", 3)
