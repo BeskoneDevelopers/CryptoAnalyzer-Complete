@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     "rest_framework_simplejwt",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -160,6 +161,7 @@ REST_FRAMEWORK = {
         "anon": "5/min",
         "user": "100/min",
     },
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SIMPLE_JWT = {
@@ -216,4 +218,23 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 300.0,
         "kwargs": {"provider": "coingecko", "limit": 10},
     }
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Crypto Analyzer API",
+    "DESCRIPTION": "API для крипто-анализатора",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SWAGGER_UI_SETTINGS": {
+        "persistAuthorization": True,
+    },
+    "SECURITY": [
+        {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            }
+        }
+    ],
 }
