@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db import reset_queries
 from django.test import TestCase
 
@@ -120,8 +121,6 @@ class AnalyticsAPITest(TestCase):
         else:
             self.assertEqual(len(results["results"]), 1)
             self.assertEqual(results["results"][0]["symbol"], "pep")
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["symbol"], "pep")
 
 
 class CeleryAPITest(TestCase):
@@ -141,3 +140,30 @@ class CeleryAPITest(TestCase):
         status_response = self.client.get(status_url)
         self.assertEqual(status_response.status_code, 200)
         self.assertIn("status", status_response.json())
+
+
+class ThrottleTests(TestCase):
+    def setUp(self):
+        cache.clear()  # сбрасываем счётчики throttle перед каждым тестом
+
+    def test_anon_throttle_5_per_minute(self):
+        url = "/api/coins/"
+        for i in range(5):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200, f"Request {i + 1} should pass")
+
+        response = self.client.get(url)  # 6-й запрос
+        self.assertEqual(response.status_code, 429, "6th anonymous request should be throttled")
+
+    def test_user_throttle_100_per_minute(self):
+        """Авторизованный пользователь: 101-й запрос = 429"""
+        user = User.objects.create_user(username="throttleuser", password="123")
+        self.client.force_login(user)  # Session auth
+
+        url = "/api/coins/"
+        for i in range(100):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200, f"Request {i + 1} should pass")
+
+        response = self.client.get(url)  # 101-й
+        self.assertEqual(response.status_code, 429)
