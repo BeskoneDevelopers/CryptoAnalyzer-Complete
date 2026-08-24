@@ -125,7 +125,7 @@ class WatchlistViewSet(ModelViewSet):
 
 
 class MarketStatusView(APIView):
-    def get(self, request):
+    def get(self, request, version=None):
         stats = get_market_stats()
         if "error" in stats:
             return Response(stats, status=404)
@@ -133,7 +133,7 @@ class MarketStatusView(APIView):
 
 
 class TopMoversView(APIView):
-    def get(self, request):
+    def get(self, request, version=None):
         move = get_top_movers()
         if isinstance(move, dict) and "error" in move:
             return Response(move, status=404)
@@ -143,7 +143,7 @@ class TopMoversView(APIView):
 
 
 class VolumeTopView(APIView):
-    def get(self, request):
+    def get(self, request, version=None):
         toper = get_top_volume()
         if isinstance(toper, dict) and "error" in toper:
             return Response(toper, status=404)
@@ -164,7 +164,7 @@ class StartSnapshotTaskView(APIView):
             429: OpenApiResponse(description="Превышен лимит запросов"),
         },
     )
-    def post(self, request):
+    def post(self, request, version=None):
         provider = request.data.get("provider", "coingecko")
         limit = request.data.get("limit", 3)
         task = fetch_snapshot_task.delay(provider, limit)
@@ -179,6 +179,6 @@ class TaskStatusView(APIView):
             404: OpenApiResponse(description="Непредвиденная ошибка"),
         },
     )
-    def get(self, request, task_id):
+    def get(self, request, task_id, version=None):
         result = AsyncResult(task_id)
         return Response({"status": result.status, "result": result.result})
