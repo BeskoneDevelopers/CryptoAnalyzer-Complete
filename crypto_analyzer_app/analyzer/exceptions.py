@@ -1,4 +1,12 @@
-from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated, NotFound, PermissionDenied, Throttled, ValidationError
+from rest_framework.exceptions import (
+    AuthenticationFailed,
+    MethodNotAllowed,
+    NotAuthenticated,
+    NotFound,
+    PermissionDenied,
+    Throttled,
+    ValidationError,
+)
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
@@ -14,6 +22,10 @@ def custom_exception_handler(exc, context):
         error_data["error"]["code"] = "validation_error"
         error_data["error"]["message"] = "Ошибка валидации данных"
         error_data["error"]["fields"] = response.data
+
+    elif isinstance(exc, MethodNotAllowed):
+        error_data["error"]["code"] = "method_not_allowed"
+        error_data["error"]["message"] = f"Метод {exc.detail} не разрешён"
 
     elif isinstance(exc, NotAuthenticated):
         error_data["error"]["code"] = "authentication_failed"
