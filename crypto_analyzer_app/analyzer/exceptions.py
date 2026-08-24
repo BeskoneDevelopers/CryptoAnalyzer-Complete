@@ -1,4 +1,4 @@
-from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated, NotFound, PermissionDenied, ValidationError
+from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated, NotFound, PermissionDenied, Throttled, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
@@ -30,6 +30,10 @@ def custom_exception_handler(exc, context):
     elif isinstance(exc, NotFound):
         error_data["error"]["code"] = "not_found"
         error_data["error"]["message"] = "Запрашиваемый ресурс не найден"
+
+    elif isinstance(exc, Throttled):
+        error_data["error"]["code"] = "throttled"
+        error_data["error"]["message"] = "Превышен лимит запросов"
 
     else:
         error_data["error"]["code"] = "server_error"
