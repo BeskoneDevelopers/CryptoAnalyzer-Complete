@@ -30,6 +30,7 @@ class CoinPricePagination(CursorPagination):
 
 
 class SnapshotViewSet(ReadOnlyModelViewSet):
+    tags = ["Snapshots"]
     permission_classes = [IsAdminOrReadOnly]
     queryset = Snapshot.objects.prefetch_related("coin_prices").all()
     serializer_class = SnapshotSerializer
@@ -62,6 +63,7 @@ class SnapshotViewSet(ReadOnlyModelViewSet):
 
 
 class CoinViewSet(ReadOnlyModelViewSet):
+    tags = ["Coins"]
     permission_classes = [IsAdminOrReadOnly]
     queryset = Coin.objects.prefetch_related("prices").all()
     serializer_class = CoinSerializer
@@ -77,6 +79,7 @@ class CoinViewSet(ReadOnlyModelViewSet):
 
 
 class WatchlistViewSet(ModelViewSet):
+    tags = ["Watchlist"]
     permission_classes = [
         IsAuthenticated,
     ]
@@ -125,6 +128,8 @@ class WatchlistViewSet(ModelViewSet):
 
 
 class MarketStatusView(APIView):
+    tags = ["Analytics"]
+
     def get(self, request, version=None):
         stats = get_market_stats()
         if "error" in stats:
@@ -133,6 +138,8 @@ class MarketStatusView(APIView):
 
 
 class TopMoversView(APIView):
+    tags = ["Analytics"]
+
     def get(self, request, version=None):
         move = get_top_movers()
         if isinstance(move, dict) and "error" in move:
@@ -143,6 +150,8 @@ class TopMoversView(APIView):
 
 
 class VolumeTopView(APIView):
+    tags = ["Analytics"]
+
     def get(self, request, version=None):
         toper = get_top_volume()
         if isinstance(toper, dict) and "error" in toper:
@@ -153,6 +162,7 @@ class VolumeTopView(APIView):
 
 
 class StartSnapshotTaskView(APIView):
+    tags = ["Tasks"]
     permission_classes = [IsAdminOrReadOnly]
 
     @extend_schema(
@@ -172,6 +182,8 @@ class StartSnapshotTaskView(APIView):
 
 
 class TaskStatusView(APIView):
+    tags = ["Tasks"]
+
     @extend_schema(
         summary="Получить статус задачи",
         responses={

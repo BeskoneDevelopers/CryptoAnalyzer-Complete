@@ -249,4 +249,5 @@ SPECTACULAR_SETTINGS = {
             }
         }
     ],
+    "SCHEMA_PATH_PREFIX": "/api/v1",
 }
