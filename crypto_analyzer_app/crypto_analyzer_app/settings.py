@@ -100,7 +100,7 @@ DATABASES = {
         "NAME": "crypto_analyzer_db",
         "USER": "postgres",
         "PASSWORD": "postgres",
-        "HOST": "localhost",
+        "HOST": os.getenv("DB_HOST", "localhost"),
         "PORT": "5432",
     }
 }
@@ -217,9 +217,9 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 EXCHANGE_PROVIDER = os.getenv("EXCHANGE_PROVIDER", "coingecko")
 
-
-CELERY_BROKER_URL = "redis://localhost:6379"
-CELERY_RESULT_BACKEND = "redis://localhost:6379"
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+CELERY_BROKER_URL = f"redis://{REDIS_HOST}:6379"
+CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:6379"
 
 CELERY_TASK_DEFAULT_RETRY_DELAY = 60
 CELERY_TASK_MAX_RETRIES = 3
