@@ -146,7 +146,7 @@ class Analyzer:
         total_cap = self.result["total_market_cap_usd"]
         self.console.print(Panel(
             f"[bold]Суммарная капитализация топ-50[/bold]\n"
-            f"[green]{total_cap}[/green]",
+            f"[green]${total_cap:,.0f}[/green]",
             border_style="green"
         ))
 
