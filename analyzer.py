@@ -52,10 +52,11 @@ class Analyzer:
             "page": page
         }
         response = requests.get(self.API_URL, params=params, timeout=10)
+        response.raise_for_status()
         data = response.json()
 
         if not isinstance(data, list):
-            raise Exception(f"API error: {data.get('status', {}).get('error_message', 'Unknow error')}")
+            raise ValueError(f"API error: {data.get('status', {}).get('error_message', 'Unknown error')}")
 
         return data
 
