@@ -30,7 +30,7 @@ class TestJsonReporter:
         assert data["top_gainers"][0]["symbol"] == "BRC"
 
         assert len(data["top_losers"]) == 3
-        assert data["top_losers"][0]["symbol"] == "EFT"
+        assert data["top_losers"][0]["symbol"] == "TMS"
 
         assert data["highest_volume"]["symbol"] == "BTC"
 
