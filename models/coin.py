@@ -19,12 +19,12 @@ class Coin:
     def __str__(self) -> str:
         line = f"{self.name}|'{self.symbol}' -- "
 
-        if self.current_price:
+        if self.current_price is not None:
             line += f"Price: ${self.current_price:,.2f}"
         else:
             line += "Price: Данные отсутствуют"
 
-        if self.price_change_for_24h:
+        if self.price_change_for_24h is not None:
             line += f" | 24H: {self.price_change_for_24h:+.2f}%"
         else:
             line += " | 24H: Данные отсутствуют"
