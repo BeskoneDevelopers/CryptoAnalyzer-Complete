@@ -29,7 +29,8 @@ class CryptoPortfolio:
         return sorted(self._coin, key=lambda c: c.price_change_for_24h if c.price_change_for_24h is not None else float("-inf"), reverse=True)[:count]
 
     def get_top_losers(self, count: int = 3):
-        return sorted(self._coin, key=lambda c: c.price_change_for_24h if c.price_change_for_24h is not None else float("inf"))[:count]
+        valid_coins = [coin for coin in self._coin if coin.price_change_for_24h is not None]
+        return sorted(valid_coins, key=lambda c: c.price_change_for_24h)[:count]
 
     def get_highest_volume(self):
         if not self._coin:

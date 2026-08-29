@@ -31,7 +31,7 @@ class JsonReporter(BaseReporter):
             "highest_volume": {
                 "name": highest.name,
                 "symbol": highest.symbol,
-                "volume": highest.total_value
+                "volume": highest.total_volume
             }
         }
         
