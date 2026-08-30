@@ -218,6 +218,14 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 EXCHANGE_PROVIDER = os.getenv("EXCHANGE_PROVIDER", "coingecko")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"redis://{REDIS_HOST}:6379/1",
+    }
+}
+
 CELERY_BROKER_URL = f"redis://{REDIS_HOST}:6379"
 CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:6379"
 
@@ -225,9 +233,9 @@ CELERY_TASK_DEFAULT_RETRY_DELAY = 60
 CELERY_TASK_MAX_RETRIES = 3
 
 CELERY_BEAT_SCHEDULE = {
-    "fetch-snapshot-every-5-minutes": {
+    "fetch-snapshot-every-hour": {
         "task": "analyzer.tasks.fetch_snapshot_task",
-        "schedule": 300.0,
+        "schedule": 3600,
         "kwargs": {"provider": "coingecko", "limit": 10},
     }
 }

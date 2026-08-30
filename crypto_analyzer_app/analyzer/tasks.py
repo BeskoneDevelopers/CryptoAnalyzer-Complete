@@ -3,10 +3,14 @@ from datetime import timedelta
 import requests
 from celery import shared_task
 from django.conf import settings
+from django.core.cache import cache
 from django.db.models import Sum
 from django.utils import timezone
 
 from analyzer.models import Coin, CoinPrice, Snapshot
+
+from .serializer import CoinPriceAnalyticSerializer
+from .services import get_market_stats, get_top_movers, get_top_volume
 
 
 def _fetch_data(provider, limit):
@@ -80,4 +84,16 @@ def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
     total_market_cap = CoinPrice.objects.filter(snapshot=snapshot).aggregate(total=Sum("price"))["total"] or 0
     snapshot.total_market_cap = total_market_cap
     snapshot.save()
+
+    market_stats = get_market_stats()
+    top_movers = get_top_movers()
+    top_volume = get_top_volume()
+
+    mover_serializer = CoinPriceAnalyticSerializer(top_movers, many=True)
+    value_serializer = CoinPriceAnalyticSerializer(top_volume, many=True)
+
+    cache.set("market_stats", market_stats, 4200)
+    cache.set("top_movers", mover_serializer.data, 4200)
+    cache.set("volume_leaders", value_serializer.data, 4200)
+
     return {"snapshot_id": snapshot.id, "total_coins": snapshot.total_coins}
