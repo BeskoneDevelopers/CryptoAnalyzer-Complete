@@ -1,5 +1,7 @@
 from celery.result import AsyncResult
 from django.core.cache import cache
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
@@ -59,6 +61,7 @@ class SnapshotViewSet(ReadOnlyModelViewSet):
         description="Возвращает один снимок с ценами",
         responses={200: SnapshotSerializer, 404: OpenApiResponse(description="Снимки не найдены")},
     )
+    @method_decorator(cache_page(60 * 60))
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -163,15 +166,24 @@ class VolumeTopView(APIView):
 
     def get(self, request, version=None):
         cached_status = cache.get("volume_leaders")
+        print("CACHE BEFORE:", cached_status)
+
         if cached_status is not None:
+            print("RETURN FROM CACHE")
             return Response(cached_status)
+
         toper = get_top_volume()
+        print("TOPER:", toper)
 
         if isinstance(toper, dict) and "error" in toper:
             return Response(toper, status=404)
 
         serializer = CoinPriceAnalyticSerializer(toper, many=True)
+        print("SERIALIZER DATA:", serializer.data)
+
         cache.set("volume_leaders", serializer.data, 4200)
+        print("CACHE AFTER:", cache.get("volume_leaders"))
+
         return Response(serializer.data)
 
 
