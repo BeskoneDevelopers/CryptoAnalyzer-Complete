@@ -1,4 +1,7 @@
 from celery.result import AsyncResult
+from django.core.cache import cache
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
@@ -58,6 +61,7 @@ class SnapshotViewSet(ReadOnlyModelViewSet):
         description="Возвращает один снимок с ценами",
         responses={200: SnapshotSerializer, 404: OpenApiResponse(description="Снимки не найдены")},
     )
+    @method_decorator(cache_page(60 * 60))
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -131,9 +135,15 @@ class MarketStatusView(APIView):
     tags = ["Analytics"]
 
     def get(self, request, version=None):
+        cached_status = cache.get("market_stats")
+        if cached_status is not None:
+            return Response(cached_status)
+
         stats = get_market_stats()
         if "error" in stats:
             return Response(stats, status=404)
+
+        cache.set("market_stats", stats, 4200)
         return Response(stats)
 
 
@@ -141,11 +151,15 @@ class TopMoversView(APIView):
     tags = ["Analytics"]
 
     def get(self, request, version=None):
+        cached_status = cache.get("top_movers")
+        if cached_status is not None:
+            return Response(cached_status)
         move = get_top_movers()
+
         if isinstance(move, dict) and "error" in move:
             return Response(move, status=404)
-
         serializer = CoinPriceAnalyticSerializer(move, many=True)
+        cache.set("top_movers", serializer.data, 4200)
         return Response(serializer.data)
 
 
@@ -153,11 +167,19 @@ class VolumeTopView(APIView):
     tags = ["Analytics"]
 
     def get(self, request, version=None):
+        cached_status = cache.get("volume_leaders")
+
+        if cached_status is not None:
+            return Response(cached_status)
+
         toper = get_top_volume()
+
         if isinstance(toper, dict) and "error" in toper:
             return Response(toper, status=404)
 
         serializer = CoinPriceAnalyticSerializer(toper, many=True)
+        cache.set("volume_leaders", serializer.data, 4200)
+
         return Response(serializer.data)
 
 
