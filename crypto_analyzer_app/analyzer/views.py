@@ -138,9 +138,11 @@ class MarketStatusView(APIView):
         cached_status = cache.get("market_stats")
         if cached_status is not None:
             return Response(cached_status)
+
         stats = get_market_stats()
         if "error" in stats:
             return Response(stats, status=404)
+
         cache.set("market_stats", stats, 4200)
         return Response(stats)
 
