@@ -166,23 +166,17 @@ class VolumeTopView(APIView):
 
     def get(self, request, version=None):
         cached_status = cache.get("volume_leaders")
-        print("CACHE BEFORE:", cached_status)
 
         if cached_status is not None:
-            print("RETURN FROM CACHE")
             return Response(cached_status)
 
         toper = get_top_volume()
-        print("TOPER:", toper)
 
         if isinstance(toper, dict) and "error" in toper:
             return Response(toper, status=404)
 
         serializer = CoinPriceAnalyticSerializer(toper, many=True)
-        print("SERIALIZER DATA:", serializer.data)
-
         cache.set("volume_leaders", serializer.data, 4200)
-        print("CACHE AFTER:", cache.get("volume_leaders"))
 
         return Response(serializer.data)
 
