@@ -28,7 +28,7 @@ class WatchlistAPI(TestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-    @patch("analyzer.serializer.validate_symbol")
+    @patch("analyzer.services.validate_symbol")
     def test_add_to_watchlist(self, mock_validate):
         mock_validate.return_value = {"valid": True, "name": "Bitcoin"}
 

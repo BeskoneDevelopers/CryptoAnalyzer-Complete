@@ -20,3 +20,7 @@ venv/
 # Django
 *.log
 db.sqlite3
+
+# Reports
+crypto_report.csv
+crypto_report.json
