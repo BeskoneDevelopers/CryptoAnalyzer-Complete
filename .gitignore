@@ -5,3 +5,6 @@ __pycache__/
 .idea/
 .venv/
 venv/
+
+crypto_report.csv
+crypto_report.json
