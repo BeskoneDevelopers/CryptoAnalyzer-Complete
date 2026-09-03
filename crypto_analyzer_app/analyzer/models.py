@@ -55,3 +55,22 @@ class WatchlistItem(models.Model):
 
     def __str__(self):
         return f"{self.user}: {self.coin}"
+
+
+class Balance(models.Model):
+    user: models.ForeignKey = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="user_balance")
+    amount: models.DecimalField = models.DecimalField(max_digits=24, decimal_places=12)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user"], name="unique_user_balance")]
+
+
+class Portfolio(models.Model):
+    user: models.ForeignKey = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="portfolio_positions")
+    coin: models.ForeignKey = models.ForeignKey(Coin, on_delete=models.CASCADE, related_name="target")
+    amount: models.DecimalField = models.DecimalField(max_digits=24, decimal_places=12)
+    buy_price: models.DecimalField = models.DecimalField(max_digits=36, decimal_places=12)
+    bought_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "coin"], name="unique_user_coin_portfolio")]
