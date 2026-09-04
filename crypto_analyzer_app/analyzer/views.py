@@ -6,7 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import CursorPagination
@@ -233,8 +233,7 @@ class PortfolioListView(ListAPIView):
     ]
 
     def get_queryset(self):
-        portfolio = Portfolio.objects.filter(user=self.request.user)
-        return portfolio
+        return Portfolio.objects.filter(user=self.request.user).order_by("id")
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -260,15 +259,22 @@ class PortfolioListView(ListAPIView):
 class PortfolioBuyView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        request=PortfolioBuySerializer,
+        responses={200: dict},
+    )
     def post(self, request, version):
         serializer = PortfolioBuySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        result = PortfolioService.buy(
-            user=request.user,
-            coin=serializer.validated_data["coin"],
-            amount=serializer.validated_data["amount"],
-        )
+        try:
+            result = PortfolioService.buy(
+                user=request.user,
+                coin=serializer.validated_data["coin"],
+                amount=serializer.validated_data["amount"],
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc))
 
         return Response(
             {
@@ -280,15 +286,22 @@ class PortfolioBuyView(APIView):
 class PortfolioSellView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        request=PortfolioSellSerializer,
+        responses={200: dict},
+    )
     def post(self, request, version):
         serializer = PortfolioSellSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        result = PortfolioService.sell(
-            user=request.user,
-            coin=serializer.validated_data["coin"],
-            amount=serializer.validated_data["amount"],
-        )
+        try:
+            result = PortfolioService.sell(
+                user=request.user,
+                coin=serializer.validated_data["coin"],
+                amount=serializer.validated_data["amount"],
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc))
 
         return Response(
             {

@@ -10,6 +10,8 @@ from analyzer.services import get_latest_price
 class PortfolioService:
     @staticmethod
     def buy(user: AbstractBaseUser, coin: Coin, amount: Decimal):
+        if amount <= 0:
+            raise ValueError("Неверно указано количество")
         with transaction.atomic():
             balance = Balance.objects.select_for_update().get(user=user)
             price = get_latest_price(coin)

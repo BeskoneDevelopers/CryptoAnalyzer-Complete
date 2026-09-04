@@ -1,3 +1,4 @@
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -5,7 +6,7 @@ from django.core.cache import cache
 from django.db import reset_queries
 from django.test import TestCase
 
-from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
+from analyzer.models import Balance, Coin, CoinPrice, Portfolio, Snapshot, WatchlistItem
 
 User = get_user_model()
 
@@ -172,3 +173,280 @@ class ThrottleTests(TestCase):
 
         response = self.client.get(url)  # 101-й
         self.assertEqual(response.status_code, 429)
+
+
+class PortfolioAPITest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="portfolio_user",
+            password="testpass123",
+        )
+
+        response = self.client.post(
+            "/api/token/",
+            {
+                "username": "portfolio_user",
+                "password": "testpass123",
+            },
+        )
+
+        self.token = response.json()["access"]
+        self.auth_header = f"Bearer {self.token}"
+
+        self.coin = Coin.objects.create(
+            name="Bitcoin",
+            symbol="BTC",
+        )
+
+        self.snapshot = Snapshot.objects.create(
+            provider="test",
+            total_coins=1,
+            total_market_cap=100000,
+        )
+
+        CoinPrice.objects.create(
+            coin=self.coin,
+            snapshot=self.snapshot,
+            price=Decimal("50000"),
+            volume_24h=Decimal("1000000"),
+            change_24h=Decimal("5"),
+        )
+
+        self.balance = Balance.objects.create(
+            user=self.user,
+            amount=Decimal("100000"),
+        )
+
+    def test_portfolio_requires_authentication(self):
+        response = self.client.get("/api/v1/portfolio/")
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_portfolio_list(self):
+        Portfolio.objects.create(
+            user=self.user,
+            coin=self.coin,
+            amount=Decimal("1.5"),
+            buy_price=Decimal("40000"),
+        )
+
+        response = self.client.get(
+            "/api/v1/portfolio/",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertEqual(data["count"], 1)
+
+        position = data["results"][0]
+
+        self.assertEqual(position["coin"], "Bitcoin")
+        self.assertEqual(position["symbol"], "BTC")
+        self.assertEqual(position["amount"], "1.500000000000")
+        self.assertEqual(position["buy_price"], "40000.000000000000")
+        self.assertEqual(position["current_price"], 50000.0)
+        self.assertEqual(position["current_value"], 75000.0)
+
+    def test_buy_success(self):
+        response = self.client.post(
+            "/api/v1/portfolio/buy/",
+            {
+                "coin": self.coin.id,
+                "amount": "1",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.balance.refresh_from_db()
+
+        portfolio = Portfolio.objects.get(
+            user=self.user,
+            coin=self.coin,
+        )
+
+        self.assertEqual(
+            self.balance.amount,
+            Decimal("50000"),
+        )
+
+        self.assertEqual(
+            portfolio.amount,
+            Decimal("1"),
+        )
+
+        self.assertEqual(
+            portfolio.buy_price,
+            Decimal("50000"),
+        )
+
+    def test_buy_insufficient_balance(self):
+        response = self.client.post(
+            "/api/v1/portfolio/buy/",
+            {
+                "coin": self.coin.id,
+                "amount": "3",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+        self.balance.refresh_from_db()
+
+        self.assertEqual(
+            self.balance.amount,
+            Decimal("100000"),
+        )
+
+        self.assertFalse(
+            Portfolio.objects.filter(
+                user=self.user,
+                coin=self.coin,
+            ).exists()
+        )
+
+    def test_sell_success(self):
+        Portfolio.objects.create(
+            user=self.user,
+            coin=self.coin,
+            amount=Decimal("2"),
+            buy_price=Decimal("40000"),
+        )
+
+        response = self.client.post(
+            "/api/v1/portfolio/sell/",
+            {
+                "coin": self.coin.id,
+                "amount": "0.5",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.balance.refresh_from_db()
+
+        portfolio = Portfolio.objects.get(
+            user=self.user,
+            coin=self.coin,
+        )
+
+        self.assertEqual(
+            self.balance.amount,
+            Decimal("125000"),
+        )
+
+        self.assertEqual(
+            portfolio.amount,
+            Decimal("1.5"),
+        )
+
+    def test_sell_insufficient_portfolio(self):
+        Portfolio.objects.create(
+            user=self.user,
+            coin=self.coin,
+            amount=Decimal("1"),
+            buy_price=Decimal("40000"),
+        )
+
+        response = self.client.post(
+            "/api/v1/portfolio/sell/",
+            {
+                "coin": self.coin.id,
+                "amount": "2",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+        self.balance.refresh_from_db()
+
+        portfolio = Portfolio.objects.get(
+            user=self.user,
+            coin=self.coin,
+        )
+
+        self.assertEqual(
+            self.balance.amount,
+            Decimal("100000"),
+        )
+
+        self.assertEqual(
+            portfolio.amount,
+            Decimal("1"),
+        )
+
+    def test_portfolio_summary(self):
+        Portfolio.objects.create(
+            user=self.user,
+            coin=self.coin,
+            amount=Decimal("1.5"),
+            buy_price=Decimal("40000"),
+        )
+
+        response = self.client.get(
+            "/api/v1/portfolio/summary/",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()["data"]
+
+        self.assertEqual(
+            data["balance"],
+            "100000.000000000000",
+        )
+
+        self.assertEqual(
+            data["portfolio_value"],
+            "75000.000000000000",
+        )
+
+        self.assertEqual(
+            data["total_value"],
+            "175000.000000000000",
+        )
+
+    def test_summary_requires_authentication(self):
+        response = self.client.get(
+            "/api/v1/portfolio/summary/",
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_buy_validation(self):
+        response = self.client.post(
+            "/api/v1/portfolio/buy/",
+            {
+                "coin": self.coin.id,
+                "amount": "0",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_sell_validation(self):
+        response = self.client.post(
+            "/api/v1/portfolio/sell/",
+            {
+                "coin": self.coin.id,
+                "amount": "0",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 400)
