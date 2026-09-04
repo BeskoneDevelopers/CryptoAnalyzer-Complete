@@ -1,15 +1,8 @@
 from django_filters import rest_framework as filters
 from rest_framework import serializers
 
-from .models import Coin, CoinPrice, Snapshot, WatchlistItem
+from .models import Coin, CoinPrice, Portfolio, Snapshot, WatchlistItem
 from .services import add_to_watchlist, validate_symbol
-
-# class CoinFilter(filters.FilterSet):
-#     symbol = filters.CharFilter(lookup_expr="iexact")
-#
-#     class Meta:
-#         model = Coin
-#         fields = ["symbol"]
 
 
 class CoinFilter(filters.FilterSet):
@@ -88,3 +81,21 @@ class CoinPriceAnalyticSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoinPrice
         fields = ["coin_name", "coin_symbol", "price", "volume_24h", "change_24h"]
+
+
+class PortfolioSerializer(serializers.ModelSerializer):
+    current_price = serializers.SerializerMethodField()
+    current_value = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Portfolio
+        fields = ["coin", "amount", "buy_price", "current_price", "current_value"]
+
+    def get_current_price(self, obj):
+        price = self.context["prices"]
+        return price[obj.coin_id]
+
+    def get_current_value(self, obj):
+        price = self.context["prices"]
+
+        return obj.amount * price[obj.coin_id]
