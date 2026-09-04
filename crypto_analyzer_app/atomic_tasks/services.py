@@ -2,9 +2,9 @@ from decimal import Decimal
 
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.db import transaction
-from services import get_latest_price
 
 from analyzer.models import Balance, Coin, Portfolio
+from analyzer.services import get_latest_price
 
 
 class PortfolioService:
