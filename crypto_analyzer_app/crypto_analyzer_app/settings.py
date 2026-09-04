@@ -160,14 +160,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         # "rest_framework.permissions.IsAuthenticated",
     ],
-    # "DEFAULT_THROTTLE_CLASSES": [
-    #     "analyzer.throttling.CustomAnonRateThrottle",
-    #     "analyzer.throttling.CustomUserRateThrottle",
-    # ],
-    "DEFAULT_THROTTLE_RATES": {
-        "anon": "5/min",
-        "user": "100/min",
-    },
+    "DEFAULT_THROTTLE_CLASSES": [
+        "analyzer.throttling.CustomAnonRateThrottle",
+        "analyzer.throttling.CustomUserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {"anon": "5/min", "user": "100/min", "login": "20/min"},
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 

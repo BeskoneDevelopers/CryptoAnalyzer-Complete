@@ -450,3 +450,87 @@ class PortfolioAPITest(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def test_user_sees_only_own_portfolio(self):
+        another_user = User.objects.create_user(
+            username="another_user",
+            password="testpass123",
+        )
+
+        Portfolio.objects.create(
+            user=self.user,
+            coin=self.coin,
+            amount=Decimal("1"),
+            buy_price=Decimal("40000"),
+        )
+
+        another_coin = Coin.objects.create(
+            name="Ethereum",
+            symbol="ETH",
+        )
+
+        Portfolio.objects.create(
+            user=another_user,
+            coin=another_coin,
+            amount=Decimal("10"),
+            buy_price=Decimal("3000"),
+        )
+
+        response = self.client.get(
+            "/api/v1/portfolio/",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertEqual(data["count"], 1)
+        self.assertEqual(data["results"][0]["coin"], "Bitcoin")
+
+    def test_user_cannot_sell_another_users_portfolio(self):
+        another_user = User.objects.create_user(
+            username="another_user",
+            password="testpass123",
+        )
+
+        another_balance = Balance.objects.create(
+            user=another_user,
+            amount=Decimal("0"),
+        )
+
+        Portfolio.objects.create(
+            user=another_user,
+            coin=self.coin,
+            amount=Decimal("2"),
+            buy_price=Decimal("40000"),
+        )
+
+        response = self.client.post(
+            "/api/v1/portfolio/sell/",
+            {
+                "coin": self.coin.id,
+                "amount": "1",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+        portfolio = Portfolio.objects.get(
+            user=another_user,
+            coin=self.coin,
+        )
+
+        another_balance.refresh_from_db()
+
+        self.assertEqual(
+            portfolio.amount,
+            Decimal("2"),
+        )
+
+        self.assertEqual(
+            another_balance.amount,
+            Decimal("0"),
+        )
