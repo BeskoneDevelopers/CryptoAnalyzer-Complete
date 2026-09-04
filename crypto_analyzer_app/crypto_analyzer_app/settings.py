@@ -33,7 +33,7 @@ SECRET_KEY = "django-insecure-=*=m0qj+2+!tv5a&+z*9d4!^xvt@@g)jyq%^d)%7dwg87mhh)b
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS: list[str] = ["*"]
 
@@ -160,10 +160,10 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         # "rest_framework.permissions.IsAuthenticated",
     ],
-    "DEFAULT_THROTTLE_CLASSES": [
-        "analyzer.throttling.CustomAnonRateThrottle",
-        "analyzer.throttling.CustomUserRateThrottle",
-    ],
+    # "DEFAULT_THROTTLE_CLASSES": [
+    #     "analyzer.throttling.CustomAnonRateThrottle",
+    #     "analyzer.throttling.CustomUserRateThrottle",
+    # ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "5/min",
         "user": "100/min",

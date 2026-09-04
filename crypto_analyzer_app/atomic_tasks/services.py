@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.db import transaction
 
-from analyzer.models import Balance, Coin, Portfolio
+from analyzer.models import Balance, Coin, CoinPrice, Portfolio, Snapshot
 from analyzer.services import get_latest_price
 
 
@@ -60,3 +60,40 @@ class PortfolioService:
             else:
                 portfolio.save()
         return {"successful": "Операция прошла успешно"}
+
+    @staticmethod
+    def get_summary(user):
+        balance = Balance.objects.get(user=user)
+
+        latest_snapshot = Snapshot.objects.order_by("-created_at").first()
+        if latest_snapshot is None:
+            raise ValueError("Снимок рынка не найден")
+
+        positions = Portfolio.objects.filter(user=user)
+
+        coin_ids = positions.values_list("coin_id", flat=True)
+
+        prices = CoinPrice.objects.filter(
+            snapshot=latest_snapshot,
+            coin_id__in=coin_ids,
+        )
+
+        prices_map = {price.coin_id: price.price for price in prices}
+
+        portfolio_value = Decimal("0")
+
+        for position in positions:
+            price = prices_map.get(position.coin_id)
+
+            if price is None:
+                raise ValueError(f"Цена монеты {position.coin_id} не найдена")
+
+            portfolio_value += position.amount * price
+
+        total_value = balance.amount + portfolio_value
+
+        return {
+            "balance": balance.amount,
+            "portfolio_value": portfolio_value,
+            "total_value": total_value,
+        }
