@@ -49,7 +49,7 @@ def custom_exception_handler(exc, context):
 
     else:
         error_data["error"]["code"] = "server_error"
-        error_data["error"]["message"] = "Внутренняя ошибка сервера. Попробуйте позже."
+        error_data["error"]["message"] = f"{type(exc).__name__}: {exc}"
 
     response.data = error_data
     return Response(error_data, status=response.status_code)

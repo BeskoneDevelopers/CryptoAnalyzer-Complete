@@ -1,15 +1,10 @@
+from decimal import Decimal
+
 from django_filters import rest_framework as filters
 from rest_framework import serializers
 
-from .models import Coin, CoinPrice, Snapshot, WatchlistItem
+from .models import Coin, CoinPrice, Portfolio, Snapshot, WatchlistItem
 from .services import add_to_watchlist, validate_symbol
-
-# class CoinFilter(filters.FilterSet):
-#     symbol = filters.CharFilter(lookup_expr="iexact")
-#
-#     class Meta:
-#         model = Coin
-#         fields = ["symbol"]
 
 
 class CoinFilter(filters.FilterSet):
@@ -88,3 +83,61 @@ class CoinPriceAnalyticSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoinPrice
         fields = ["coin_name", "coin_symbol", "price", "volume_24h", "change_24h"]
+
+
+class PortfolioSerializer(serializers.ModelSerializer):
+    coin = serializers.SerializerMethodField()
+    symbol = serializers.SerializerMethodField()
+    current_price = serializers.SerializerMethodField()
+    current_value = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Portfolio
+        fields = ["coin", "symbol", "amount", "buy_price", "current_price", "current_value"]
+
+    def get_coin(self, obj):
+        return obj.coin.name
+
+    def get_symbol(self, obj):
+        return obj.coin.symbol.upper()
+
+    def get_current_price(self, obj):
+        price = self.context["prices"]
+        return price[obj.coin_id]
+
+    def get_current_value(self, obj):
+        price = self.context["prices"]
+
+        return obj.amount * price[obj.coin_id]
+
+
+class PortfolioBuySerializer(serializers.Serializer):
+    coin = serializers.PrimaryKeyRelatedField(queryset=Coin.objects.all())
+    amount = serializers.DecimalField(
+        max_digits=24,
+        decimal_places=12,
+    )
+
+
+class PortfolioSellSerializer(serializers.Serializer):
+    coin = serializers.PrimaryKeyRelatedField(queryset=Coin.objects.all())
+    amount = serializers.DecimalField(
+        max_digits=24,
+        decimal_places=12,
+        min_value=Decimal("0.000000000001"),
+    )
+
+
+class PortfolioSummarySerializer(serializers.Serializer):
+    balance = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+    )
+    portfolio_value = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+    )
+    total_value = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+    )

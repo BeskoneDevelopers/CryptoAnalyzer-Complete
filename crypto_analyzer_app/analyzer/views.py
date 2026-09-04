@@ -6,19 +6,27 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.generics import ListAPIView
 from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
-from .models import Coin, CoinPrice, Snapshot, WatchlistItem
+from atomic_tasks.services import PortfolioService
+
+from .models import Coin, CoinPrice, Portfolio, Snapshot, WatchlistItem
 from .permissions import IsAdminOrReadOnly
 from .serializer import (
     CoinFilter,
     CoinPriceAnalyticSerializer,
     CoinSerializer,
+    PortfolioBuySerializer,
+    PortfolioSellSerializer,
+    PortfolioSerializer,
+    PortfolioSummarySerializer,
     SnapshotSerializer,
     WatchlistInputSerializer,
     WatchlistOutputSerializer,
@@ -216,3 +224,107 @@ class TaskStatusView(APIView):
     def get(self, request, task_id, version=None):
         result = AsyncResult(task_id)
         return Response({"status": result.status, "result": result.result})
+
+
+class PortfolioListView(ListAPIView):
+    serializer_class = PortfolioSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def get_queryset(self):
+        return Portfolio.objects.filter(user=self.request.user).order_by("id")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+
+        portfolio = self.get_queryset()
+
+        latest_snapshot = Snapshot.objects.order_by("-created_at").first()
+
+        if latest_snapshot is None:
+            raise NotFound("Снимок рынка не найден")
+
+        coin_ids = portfolio.values_list("coin_id", flat=True)
+
+        prices = CoinPrice.objects.filter(
+            snapshot=latest_snapshot,
+            coin_id__in=coin_ids,
+        )
+
+        context["prices"] = {price.coin_id: price.price for price in prices}
+        return context
+
+
+class PortfolioBuyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=PortfolioBuySerializer,
+        responses={200: dict},
+    )
+    def post(self, request, version):
+        serializer = PortfolioBuySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            result = PortfolioService.buy(
+                user=request.user,
+                coin=serializer.validated_data["coin"],
+                amount=serializer.validated_data["amount"],
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc))
+
+        return Response(
+            {
+                "data": result,
+            }
+        )
+
+
+class PortfolioSellView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=PortfolioSellSerializer,
+        responses={200: dict},
+    )
+    def post(self, request, version):
+        serializer = PortfolioSellSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            result = PortfolioService.sell(
+                user=request.user,
+                coin=serializer.validated_data["coin"],
+                amount=serializer.validated_data["amount"],
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc))
+
+        return Response(
+            {
+                "data": result,
+            }
+        )
+
+
+class PortfolioSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses=PortfolioSummarySerializer,
+    )
+    def get(self, request, version):
+        result = PortfolioService.get_summary(
+            user=request.user,
+        )
+
+        serializer = PortfolioSummarySerializer(result)
+
+        return Response(
+            {
+                "data": serializer.data,
+            }
+        )

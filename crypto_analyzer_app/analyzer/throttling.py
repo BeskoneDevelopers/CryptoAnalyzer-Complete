@@ -13,3 +13,7 @@ class CustomUserRateThrottle(UserRateThrottle):
             self.rate = "1000/min"
             self.num_requests, self.duration = self.parse_rate(self.rate)
         return super().allow_request(request, view)
+
+
+class LoginRateThrottle(AnonRateThrottle):
+    scope = "login"

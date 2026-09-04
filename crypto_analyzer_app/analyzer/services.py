@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 import requests
@@ -86,3 +87,14 @@ def get_top_volume(limit: int = 10) -> dict[str, str] | QuerySet[CoinPrice]:
     status = CoinPrice.objects.filter(snapshot=last).select_related("coin").order_by("-volume_24h")[:limit]
 
     return status
+
+
+def get_latest_price(coin: Coin) -> Decimal:
+    last = Snapshot.objects.order_by("-created_at").first()
+    if not last:
+        raise ValueError("Снимок не найден")
+    try:
+        search_coin = CoinPrice.objects.get(snapshot=last, coin=coin)
+    except CoinPrice.DoesNotExist:
+        raise ValueError("Цена монеты не найдена") from None
+    return search_coin.price
