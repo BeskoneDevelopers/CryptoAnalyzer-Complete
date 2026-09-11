@@ -31,8 +31,6 @@ class Coin:
         return line
 
     def _compare_change(self, other: "Coin"):
-        if not isinstance(other, Coin):
-            return NotImplemented
         self_change = self.price_change_for_24h or 0
         other_change = other.price_change_for_24h or 0
         return self_change, other_change
@@ -40,12 +38,18 @@ class Coin:
 
 
     def __lt__(self, other: "Coin"): # - lt сравнивает - "<"
+        if not  isinstance(other, Coin):
+            return NotImplemented
+
         se, ot = self._compare_change(other)
-        return se < ot if isinstance(se, float) else NotImplemented
+        return se < ot
 
     def __gt__(self, other): # - gt сравнивает ">"
+        if not isinstance(other, Coin):
+            return NotImplemented
+
         se, ot = self._compare_change(other)
-        return se > ot if isinstance(se, float) else NotImplemented
+        return se > ot
 
     def __post_init__(self):
         if self.current_price is not None and self.current_price < 0:
