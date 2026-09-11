@@ -47,4 +47,8 @@ class WatchlistViewSet(ModelViewSet):
     def delete_watchlist(self, request):
         symbol = request.data.get("symbol")
         result = remove_from_watchlist(request.user, symbol)
-        return Response(result)
+
+        if result.get("valid") is False:
+            return Response(result, status=404)
+
+        return Response(result, status=200)
