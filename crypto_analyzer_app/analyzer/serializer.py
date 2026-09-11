@@ -41,20 +41,29 @@ class SnapshotSerializer(serializers.ModelSerializer):
 class WatchlistInputSerializer(serializers.Serializer):
     symbol = serializers.CharField()
 
-    def validate_symbol(self, value):
-        result = service_validate_symbol(value)
+    def validate(self, attrs):
+        symbol = attrs["symbol"].strip().lower()
+
+        result = service_validate_symbol(symbol)
 
         if not result:
             raise serializers.ValidationError(
-                f"Монета {value} не найдена"
+                f"Монета {symbol} не найдена"
             )
 
-        return value.strip().lower()
+        attrs["symbol"] = symbol
+        attrs["coin_data"] = result
+
+        return attrs
 
     def create(self, validated_data):
         user = self.context["request"].user
-        symbol = validated_data["symbol"]
-        return add_to_watchlist(user, symbol)
+
+        return add_to_watchlist(
+            user=user,
+            symbol=validated_data["symbol"],
+            coin_data=validated_data["coin_data"],
+        )
 
 class WatchlistOutputSerializer(serializers.ModelSerializer):
     coin = serializers.StringRelatedField()

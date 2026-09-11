@@ -70,18 +70,10 @@ def validate_symbol(symbol):
     return provider(symbol)
 
 
-def add_to_watchlist(user, symbol):
-    if not symbol:
-        return {"error": f"{symbol} не передан"}
-
-    valid = validate_symbol(symbol)
-
-    if not valid:
-        return {"error": f"Монета с символом - {symbol} не найдена"}
-
+def add_to_watchlist(user, symbol, coin_data):
     coin, _ = Coin.objects.get_or_create(
         symbol=symbol,
-        defaults={"name": valid.get("name")}
+        defaults={"name": coin_data["name"]},
     )
 
     watchlist, _ = WatchlistItem.objects.get_or_create(
