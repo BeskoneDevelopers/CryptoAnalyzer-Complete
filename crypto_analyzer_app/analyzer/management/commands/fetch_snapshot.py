@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand, CommandError
 from analyzer.models import Coin, Snapshot, CoinPrice
 from django.db.models import Sum
 from django.conf import settings
+from django.db import transaction
 
 import requests
 
@@ -21,31 +22,38 @@ class Command(BaseCommand):
 
         coins_data = self.fetch_data(provider, limit)
 
-        snapshot = Snapshot.objects.create(
-            provider=provider,
-            total_coins=len(coins_data),
-            total_market_cap=0
-        )
-
-        for coin_data in coins_data:
-            coin, _ = Coin.objects.get_or_create(
-                symbol=coin_data.get("symbol"),
-                defaults={"name": coin_data.get("name", "")}
-            )
-            CoinPrice.objects.create(
-                coin=coin,
-                snapshot=snapshot,
-                price=coin_data.get('current_price') or 0,
-                volume_24h=coin_data.get('total_volume') or 0,
-                change_24h=coin_data.get('price_change_percentage_24h') or 0,
-                market_cap=coin_data.get('market_cap') or 0
+        with transaction.atomic():
+            snapshot = Snapshot.objects.create(
+                provider=provider,
+                total_coins=len(coins_data),
+                total_market_cap=0
             )
 
-        total_cap = CoinPrice.objects.filter(snapshot=snapshot).aggregate(
-            total=Sum('market_cap')
-        )['total'] or 0
-        snapshot.total_market_cap = total_cap
-        snapshot.save()
+            for coin_data in coins_data:
+                symbol = coin_data.get("symbol", "").upper()
+
+                coin, _ = Coin.objects.get_or_create(
+                    symbol=symbol,
+                    defaults={"name": coin_data.get("name", "")}
+                )
+
+                CoinPrice.objects.create(
+                    coin=coin,
+                    snapshot=snapshot,
+                    price=coin_data.get("current_price") or 0,
+                    volume_24h=coin_data.get("total_volume") or 0,
+                    change_24h=coin_data.get("price_change_percentage_24h") or 0,
+                    market_cap=coin_data.get("market_cap") or 0
+                )
+
+            total_cap = CoinPrice.objects.filter(
+                snapshot=snapshot
+            ).aggregate(
+                total=Sum("market_cap")
+            )["total"] or 0
+
+            snapshot.total_market_cap = total_cap
+            snapshot.save()
 
         self.stdout.write(f"Создание snapshot - {snapshot.id}")
 
