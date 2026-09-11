@@ -14,7 +14,7 @@ def retry(attempts: int = 3, delay: float = 1):
             for attempt in range(attempts):
                 try:
                     return func(*args, **kwargs)
-                except ConnectionError:
+                except requests.exceptions.ConnectionError:
                     if attempt == attempts - 1:
                         raise
                     time.sleep(delay)
