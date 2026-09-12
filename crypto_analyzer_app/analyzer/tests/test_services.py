@@ -34,13 +34,24 @@ class ValidateSymbolTests(TestCase):
 
 class WatchlistTests(TestCase):
 
-    @patch("analyzer.services.validate_symbol")
-    def test_add_to_watchlist_success(self, mock_validate):
-        mock_validate.return_value = {"valid": True, "name": "Bitcoin"}
-        user = User.objects.create_user(username="tester", password="321")
-        result = add_to_watchlist(user, "btc")
+    def test_add_to_watchlist_success(self):
+        user = User.objects.create_user(
+            username="tester",
+            password="321",
+        )
+        coin_data = {
+            "valid": True,
+            "name": "Bitcoin",
+        }
+        result = add_to_watchlist(
+            user=user,
+            symbol="btc",
+            coin_data=coin_data,
+        )
+
+        self.assertEqual(result.user, user)
         self.assertEqual(result.coin.symbol, "btc")
-        mock_validate.assert_called_once_with("btc")
+        self.assertEqual(result.coin.name, "Bitcoin")
 
     def test_remove_from_watchlist_success(self):
         user = User.objects.create_user(username="tester", password="321")

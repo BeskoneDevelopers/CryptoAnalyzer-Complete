@@ -1,4 +1,4 @@
-# Environment variables
+﻿# Environment variables
 .env
 
 # Python
@@ -21,19 +21,15 @@ analyze_tests.py
 analysis_prompt.txt
 
 # Байт-код и кэш
-__pycache__/
 *.py[cod]
 *$py.class
 
 # Виртуальные окружения
-venv/
-.venv/
 env/
 .env/
 ENV/
 
 # Переменные окружения
-.env
 .env.local
 .env.*.local
 !.env.example
@@ -59,3 +55,7 @@ htmlcov/
 
 # PyInstaller
 *.spec
+
+# Crypto reports
+crypto_report.csv
+crypto_report.json
