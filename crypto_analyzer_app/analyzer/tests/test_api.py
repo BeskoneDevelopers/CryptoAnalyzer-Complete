@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.db import reset_queries
@@ -125,19 +125,39 @@ class AnalyticsAPITest(TestCase):
 
 
 class CeleryAPITest(TestCase):
-    def test_start_task_snapshot(self):
-        url = "/api/snapshots/start/"
-        response = self.client.post(url, data={"provider": "test", "limit": 2}, content_type="application/json")
+    @patch("analyzer.views.fetch_snapshot_task.delay")
+    def test_start_task_snapshot(self, mock_delay):
+        mock_task = MagicMock()
+        mock_task.id = "test-task-id"
+        mock_delay.return_value = mock_task
+
+        response = self.client.post(
+            "/api/snapshots/start/",
+            data={
+                "provider": "test",
+                "limit": 2,
+            },
+            content_type="application/json",
+        )
+
         self.assertEqual(response.status_code, 202)
-        result = response.json()
-        self.assertIn("task_id", result)
 
-    def test_task_status(self):
-        url = "/api/snapshots/start/"
-        response = self.client.post(url, data={"provider": "test", "limit": 2}, content_type="application/json")
-        task_id = response.json()["task_id"]
+        self.assertEqual(response.json()["task_id"], "test-task-id")
 
-        status_url = f"/api/snapshots/tasks/{task_id}/"
-        status_response = self.client.get(status_url)
-        self.assertEqual(status_response.status_code, 200)
-        self.assertIn("status", status_response.json())
+        mock_delay.assert_called_once_with("test", 2)
+
+    @patch("analyzer.views.AsyncResult")
+    @patch("analyzer.views.fetch_snapshot_task.delay")
+    def test_task_status(self, mock_delay, mock_async_result):
+        mock_task = MagicMock()
+        mock_task.id = "123"
+        mock_delay.return_value = mock_task
+        mock_result = MagicMock()
+        mock_result.status = "PENDING"
+        mock_result.result = None
+
+        mock_async_result.return_value = mock_result
+
+        response = self.client.get("/api/snapshots/tasks/123/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "PENDING")
