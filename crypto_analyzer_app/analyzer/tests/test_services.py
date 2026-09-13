@@ -1,18 +1,12 @@
 import pytest
-from django.db.models.expressions import result
-from django.test import TestCase
 from unittest.mock import patch, Mock
 
-from django.contrib.auth import get_user_model
-
-from analyzer.services import validate_symbol, add_to_watchlist, remove_from_watchlist
-from analyzer.models import Coin, WatchlistItem
-
 import requests
+from django.contrib.auth import get_user_model
+from django.test import TestCase
 
-from analyzer.models import Snapshot, CoinPrice
-from analyzer.tasks import fetch_snapshot_task
-from redis.retry import Retry
+from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
+from analyzer.services import add_to_watchlist, remove_from_watchlist, validate_symbol
 
 User = get_user_model()
 
@@ -37,6 +31,12 @@ class ValidateSymbolTests(TestCase):
         self.assertFalse(temp)
         mock_get.assert_called_once_with("https://api.coingecko.com/api/v3/search?query=ttv")
 
+    def test_fetch_snapshot_unknown_provider(self):
+        from analyzer.tasks import fetch_snapshot_task
+        with pytest.raises(ValueError, match="Неизвестный провайдер"):
+            fetch_snapshot_task.run(provider="test")
+
+
 
 class WatchlistTests(TestCase):
 
@@ -58,6 +58,7 @@ class WatchlistTests(TestCase):
 class CeleryTasksTests(TestCase):
     @patch("analyzer.tasks._fetch_data")
     def test_success(self, mock_fetch):
+        from analyzer.tasks import fetch_snapshot_task
         mock_fetch.return_value = [
             {"name": "Bibicoin", "symbol": "bbc", "current_price": 50000, "total_volume": 100,
              "price_change_percentage_24h": 5}
@@ -76,19 +77,19 @@ class CeleryTasksTests(TestCase):
 
     @patch("analyzer.tasks._fetch_data")
     def test_retry_on_conn_error(self, mock_fetch):
+        from analyzer.tasks import fetch_snapshot_task
         mock_fetch.side_effect = requests.exceptions.ConnectionError("Нет соединения")
-        try:
-            fetch_snapshot_task.run("coingecko", 3)
-            self.fail("Должна была бросить ошибку")
-        except requests.exceptions.ConnectionError:
-            pass
 
+        result = fetch_snapshot_task.apply(args=("coingecko", 3))
+
+        self.assertTrue(result.failed())
         self.assertEqual(Snapshot.objects.count(), 0)
         self.assertEqual(CoinPrice.objects.count(), 0)
-        mock_fetch.assert_called_once_with("coingecko", 3)
+        self.assertEqual(mock_fetch.call_count, 4)
 
     @patch("analyzer.tasks._fetch_data")
     def test_idempotency(self, mock_fetch):
+        from analyzer.tasks import fetch_snapshot_task
         mock_fetch.return_value = [
             {"name": "Bibcoin", "symbol": "bbc", "current_price": 50000,
              "total_volume": 100, "price_change_percentage_24h": 5}
@@ -105,6 +106,7 @@ class CeleryTasksTests(TestCase):
 
     @patch("analyzer.tasks._fetch_data")
     def test_multiple_coins(self, mock_fetch):
+        from analyzer.tasks import fetch_snapshot_task
         mock_fetch.return_value = [
             {
                 "name": "Bibcoin",

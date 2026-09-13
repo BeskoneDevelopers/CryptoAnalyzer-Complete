@@ -5,6 +5,8 @@ from django.conf import settings
 
 import requests
 
+from analyzer.tasks import fetch_snapshot_task
+
 class Command(BaseCommand):
     help = "Извлекает крипто-данные и создает снимок"
 
@@ -16,47 +18,8 @@ class Command(BaseCommand):
         provider = options["provider"]
         limit = options["limit"]
 
-        if provider == "coinmarketcap" and not settings.CMC_API_KEY:
-            self.stderr.write("Отсутствует API ключ в файле .env")
-            return
-
-        coins_data = self.fetch_data(provider,limit)
-
-
-        snapshot = Snapshot.objects.create(
-            provider=provider,
-            total_coins=len(coins_data),
-            total_market_cap=0
-        )
-
-
-        for coin_data in coins_data:
-            name = coin_data.get("name")
-            symbol = coin_data.get("symbol")
-            current_price = coin_data.get('current_price', 0)
-            volume = coin_data.get('total_volume', 0)
-            change = coin_data.get('price_change_percentage_24h', 0)
-
-            coin, created = Coin.objects.get_or_create(
-                symbol=symbol,
-                defaults={"name": name}
-            )
-
-            CoinPrice.objects.create(
-                coin=coin,
-                snapshot=snapshot,
-                price=current_price or 0,
-                volume_24h=volume or 0,
-                change_24h=change or 0
-            )
-
-        total_market_cap = CoinPrice.objects.filter(snapshot=snapshot).aggregate(
-            total=Sum('price')) ['total'] or 0
-        snapshot.total_market_cap = total_market_cap
-        snapshot.save()
-
-
-        self.stdout.write(f"Создание snapshot - {snapshot.id}")
+        task = fetch_snapshot_task.delay(provider, limit)
+        self.stdout.write(f"Операция создана: {task.id}")
 
     def fetch_data(self, provider, limit):
         if provider == "coingecko":

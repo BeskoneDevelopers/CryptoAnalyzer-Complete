@@ -59,3 +59,6 @@ htmlcov/
 
 # PyInstaller
 *.spec
+
+celerybeat-schedule
+celerybeat-schedule.*

@@ -1,0 +1,6 @@
+from .settings import *
+
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = False
+CELERY_TASK_STORE_EAGER_RESULT = True
+CELERY_RESULT_BACKEND = "cache+memory://"

@@ -1,4 +1,3 @@
-from celery.result import AsyncResult
 from rest_framework.decorators import action
 from  rest_framework.response import Response
 from django_filters import rest_framework as filters
@@ -83,12 +82,17 @@ class StartSnapshotTaskView(APIView):
         provider = request.data.get("provider", "coingecko")
         limit = request.data.get("limit", 3)
         task = fetch_snapshot_task.delay(provider, limit)
+
+        print("DELAY RESULT TYPE:", type(task))
+        print("DELAY RESULT STATE:", task.state)
+        print("DELAY RESULT:", task.result)
+
         return Response({"task_id": task.id}, status=202)
 
 class TaskStatusView(APIView):
     def get(self, request, task_id):
-        result = AsyncResult(task_id)
+        result = fetch_snapshot_task.AsyncResult(task_id)
         return Response({
             "status": result.status,
-            "result": result.result
+            "result": str(result.result) if result.failed() else result.result
         })
