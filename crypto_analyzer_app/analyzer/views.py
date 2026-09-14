@@ -19,7 +19,11 @@ class SnapshotViewSet(ModelViewSet):
 
 
 class CoinViewSet(ModelViewSet):
-    queryset = Coin.objects.prefetch_related("prices").all()
+    queryset = (
+        Coin.objects
+        .prefetch_related("prices")
+        .order_by("id")
+    )
     serializer_class = CoinSerializer
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = CoinFilter
@@ -48,7 +52,10 @@ class WatchlistViewSet(ModelViewSet):
     def delete_watchlist(self, request):
         symbol = request.data.get("symbol")
         result = remove_from_watchlist(request.user, symbol)
-        return Response(result)
+        if result.get("valid") is False:
+            return Response(result, status=404)
+
+        return Response(result, status=200)
 
 
 class MarketStatusView(APIView):
@@ -57,6 +64,7 @@ class MarketStatusView(APIView):
         if "error" in stats:
             return Response(stats, status=404)
         return Response(stats)
+
 
 class TopMoversView(APIView):
     def get(self, request):
@@ -67,6 +75,7 @@ class TopMoversView(APIView):
         serializer = CoinPriceAnalyticSerializer(move, many=True)
         return Response(serializer.data)
 
+
 class VolumeTopView(APIView):
     def get(self, request):
         toper = get_top_volume()
@@ -76,23 +85,23 @@ class VolumeTopView(APIView):
         serializer = CoinPriceAnalyticSerializer(toper, many=True)
         return Response(serializer.data)
 
-
 class StartSnapshotTaskView(APIView):
     def post(self, request):
         provider = request.data.get("provider", "coingecko")
         limit = request.data.get("limit", 3)
+
         task = fetch_snapshot_task.delay(provider, limit)
 
-        print("DELAY RESULT TYPE:", type(task))
-        print("DELAY RESULT STATE:", task.state)
-        print("DELAY RESULT:", task.result)
-
-        return Response({"task_id": task.id}, status=202)
+        return Response(
+            {"task_id": task.id},
+            status=202,
+        )
 
 class TaskStatusView(APIView):
     def get(self, request, task_id):
         result = fetch_snapshot_task.AsyncResult(task_id)
+
         return Response({
             "status": result.status,
-            "result": str(result.result) if result.failed() else result.result
+            "result": str(result.result) if result.failed() else result.result,
         })
