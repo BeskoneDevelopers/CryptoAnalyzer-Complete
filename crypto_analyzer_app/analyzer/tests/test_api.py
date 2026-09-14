@@ -188,6 +188,37 @@ class ThrottleTests(TestCase):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200, f"Request {i + 1} should pass")
         response = self.client.get(url)
+        self.assertEqual(
+            response.status_code,
+            429,
+            "101st authenticated request should be throttled",
+        )
+
+    def test_admin_throttle_1000_per_minute(self):
+        admin = User.objects.create_superuser(
+            username="adminthrottle",
+            password="123",
+            email="admin@example.com",
+        )
+        self.client.force_login(admin)
+
+        url = "/api/v1/coins/"
+
+        for i in range(1000):
+            response = self.client.get(url)
+            self.assertEqual(
+                response.status_code,
+                200,
+                f"Request {i + 1} should pass",
+            )
+
+        response = self.client.get(url)
+
+        self.assertEqual(
+            response.status_code,
+            429,
+            "1001st superuser request should be throttled",
+        )
 
 class AnyTests(TestCase):
 
