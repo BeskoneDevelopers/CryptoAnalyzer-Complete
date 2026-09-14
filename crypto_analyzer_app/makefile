@@ -1,18 +1,20 @@
-COMPOSE = docker-compose
+COMPOSE = docker compose
 EXEC = $(COMPOSE) exec web
 MANAGE = $(EXEC) python manage.py
 
-.PHONY: help
+.PHONY: help build up logs down down-volumes restart migrate makemigrations shell createsuperuser test lint format bash install
+
 help:
-        @echo "Доступные команды:"
-        @echo "  make build       — Собрать образы"
-        @echo "  make up          — Запустить контейнеры в фоне"
-        @echo "  make logs        — Посмотреть логи"
-        @echo "  make migrate     — Применить миграции"
-        @echo "  make shell       — Зайти в shell Django"
-        @echo "  make test        — Запустить тесты"
-        @echo "  make bash        — Зайти в bash контейнера web"
-        @echo "  make down        — Остановить и удалить контейнеры"
+	@echo "Доступные команды:"
+	@echo "  make build        — Собрать образы"
+	@echo "  make up           — Запустить контейнеры в фоне"
+	@echo "  make logs         — Посмотреть логи"
+	@echo "  make migrate      — Применить миграции"
+	@echo "  make shell        — Зайти в shell Django"
+	@echo "  make test         — Запустить тесты"
+	@echo "  make bash         — Зайти в bash контейнера web"
+	@echo "  make down         — Остановить контейнеры"
+	@echo "  make down-volumes — Остановить контейнеры и удалить volumes"
 
 build:
 	$(COMPOSE) build
@@ -24,11 +26,14 @@ logs:
 	$(COMPOSE) logs -f
 
 down:
+	$(COMPOSE) down
+
+down-volumes:
 	$(COMPOSE) down -v
 
 restart:
-    $(MAKE) down
-    $(MAKE) up
+	$(MAKE) down
+	$(MAKE) up
 
 migrate:
 	$(MANAGE) migrate

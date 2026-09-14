@@ -7,20 +7,32 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   redis:
     image: redis:8
 
   web:
     build: .
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn crypto_analyzer_app.wsgi:application --bind 0.0.0.0:8000"
     environment:
       DB_HOST: db
       REDIS_HOST: redis
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
-      - .:/app
+      - staticfiles:/app/staticfiles
 
 
   celery_worker:
@@ -30,10 +42,10 @@ services:
         DB_HOST: db
         REDIS_HOST: redis
       depends_on:
-        - db
-        - redis
-      volumes:
-        - .:/app
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_started
 
   celery_beat:
       build: .
@@ -42,10 +54,10 @@ services:
         DB_HOST: db
         REDIS_HOST: redis
       depends_on:
-        - db
-        - redis
-      volumes:
-        - .:/app
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_started
 
   nginx:
       image: nginx:1.30

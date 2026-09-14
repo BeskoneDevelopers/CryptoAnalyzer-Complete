@@ -2,10 +2,8 @@ venv/
 .venv/
 env/
 
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+**/__pycache__/
+**/*.py[cod]
 .pytest_cache/
 .coverage
 htmlcov/
@@ -37,6 +35,7 @@ secrets/
 
 media/
 staticfiles/
+celerybeat-schedule*
 
 Dockerfile
 .dockerignore
