@@ -13,8 +13,17 @@ from rest_framework.views import exception_handler
 
 def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
+
     if response is None:
-        return response
+        error_data = {
+            "success": False,
+            "error": {
+                "code": "server_error",
+                "message": "Ошибка сервера. Попробуйте позже",
+                "fields": None
+            }
+        }
+        return Response(error_data, status=500)
 
     error_data = {"success": False, "error": {"code": None, "message": None, "fields": None}}
 
@@ -52,4 +61,4 @@ def custom_exception_handler(exc, context):
         error_data["error"]["message"] = "Внутренняя ошибка сервера. Попробуйте позже."
 
     response.data = error_data
-    return Response(error_data, status=response.status_code)
+    return response

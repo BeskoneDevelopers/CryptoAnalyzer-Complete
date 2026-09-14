@@ -6,6 +6,7 @@ from django.db import reset_queries
 from django.test import TestCase
 
 from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
+from analyzer.exceptions import custom_exception_handler
 
 User = get_user_model()
 
@@ -184,3 +185,12 @@ class ThrottleTests(TestCase):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200, f"Request {i + 1} should pass")
         response = self.client.get(url)
+
+class AnyTests(TestCase):
+
+    def test_custom_exception_handler_returns_json_for_unknown_error(self):
+        response = custom_exception_handler(RuntimeError("boom"), {})
+
+        assert response.status_code == 500
+        assert response.data["success"] is False
+        assert response.data["error"]["code"] == "server_error"
