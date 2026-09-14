@@ -8,5 +8,5 @@ class BaseReporter(ABC):
         self.generate_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     @abstractmethod
-    def report(self, portfolio: CryptoPortfolio, provider_name: str, top_count: int = 3) -> None:
+    def report(self, data: dict) -> None:
         pass
