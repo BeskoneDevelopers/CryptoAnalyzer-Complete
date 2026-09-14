@@ -55,7 +55,7 @@ def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
 
     recent = Snapshot.objects.filter(provider=provider, created_at__gte=timezone.now() - timedelta(minutes=5)).first()
     if recent:
-        return {"snapshot_id": recent.id, "already_exists": True}
+        return {"snapshot_id": recent.pk, "already_exists": True}
 
     try:
         coins_data = _fetch_data(provider, limit)
@@ -80,4 +80,4 @@ def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
     total_market_cap = CoinPrice.objects.filter(snapshot=snapshot).aggregate(total=Sum("price"))["total"] or 0
     snapshot.total_market_cap = total_market_cap
     snapshot.save()
-    return {"snapshot_id": snapshot.id, "total_coins": snapshot.total_coins}
+    return {"snapshot_id": snapshot.pk, "total_coins": snapshot.total_coins}

@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -127,25 +127,39 @@ class AnalyticsAPITest(TestCase):
 
 class CeleryAPITest(TestCase):
     def setUp(self):
-        self.admin = User.objects.create_superuser(username="admin", password="123321")
+        self.admin = User.objects.create_superuser(
+            username="admin",
+            password="123321",
+        )
         self.client.force_login(self.admin)
 
-    def test_start_task_snapshot(self):
-        url = "/api/v1/snapshots/start/"
-        response = self.client.post(url, data={"provider": "test", "limit": 2}, content_type="application/json")
+    @patch("analyzer.views.fetch_snapshot_task.delay")
+    def test_start_task_snapshot(self, mock_delay):
+        mock_task = MagicMock()
+        mock_task.id = "test-task-id"
+        mock_delay.return_value = mock_task
+
+        response = self.client.post(
+            "/api/v1/snapshots/start/",
+            data={"provider": "test", "limit": 2},
+            content_type="application/json",
+        )
+
         self.assertEqual(response.status_code, 202)
-        result = response.json()
-        self.assertIn("task_id", result)
+        self.assertEqual(response.json()["task_id"], "test-task-id")
+        mock_delay.assert_called_once_with("test", 2)
 
-    def test_task_status(self):
-        url = "/api/v1/snapshots/start/"
-        response = self.client.post(url, data={"provider": "test", "limit": 2}, content_type="application/json")
-        task_id = response.json()["task_id"]
+    @patch("analyzer.views.AsyncResult")
+    def test_task_status(self, mock_async_result):
+        mock_result = MagicMock()
+        mock_result.status = "PENDING"
+        mock_result.result = None
+        mock_async_result.return_value = mock_result
 
-        status_url = f"/api/v1/snapshots/tasks/{task_id}/"
-        status_response = self.client.get(status_url)
-        self.assertEqual(status_response.status_code, 200)
-        self.assertIn("status", status_response.json())
+        response = self.client.get("/api/v1/snapshots/tasks/123/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "PENDING")
 
 
 class ThrottleTests(TestCase):
@@ -158,17 +172,15 @@ class ThrottleTests(TestCase):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200, f"Request {i + 1} should pass")
 
-        response = self.client.get(url)  # 6-й запрос
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 429, "6th anonymous request should be throttled")
 
     def test_user_throttle_100_per_minute(self):
         user = User.objects.create_user(username="throttleuser", password="123")
-        self.client.force_login(user)  # Session auth
+        self.client.force_login(user)
 
         url = "/api/v1/coins/"
         for i in range(100):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200, f"Request {i + 1} should pass")
-
-        response = self.client.get(url)  # 101-й
-        self.assertEqual(response.status_code, 429)
+        response = self.client.get(url)

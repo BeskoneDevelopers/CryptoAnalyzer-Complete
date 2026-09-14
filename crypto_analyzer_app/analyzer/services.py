@@ -7,7 +7,7 @@ from django.db.models import Avg, Max, Min, QuerySet
 from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
 
 
-def validate_symbol(symbol: str) -> dict[str, Any] | bool:
+def validate_symbol(symbol: str) -> dict[str, Any] | None:
     search_symbol = f"https://api.coingecko.com/api/v3/search?query={symbol}"
 
     with requests.Session() as session:
@@ -18,7 +18,7 @@ def validate_symbol(symbol: str) -> dict[str, Any] | bool:
         for coin in data.get("coins", []):
             if coin.get("symbol", "").lower() == symbol.lower():
                 return {"valid": True, "name": coin.get("name")}
-        return False
+        return None
 
 
 def add_to_watchlist(user: User, symbol: str) -> dict[str, str] | WatchlistItem:
@@ -26,7 +26,7 @@ def add_to_watchlist(user: User, symbol: str) -> dict[str, str] | WatchlistItem:
         return {"error": f"{symbol} не передан"}
 
     valid = validate_symbol(symbol)
-    if valid and isinstance(valid, dict):
+    if valid is not None:
         coin, created = Coin.objects.get_or_create(symbol=symbol, defaults={"name": valid.get("name")})
         watchlist, created = WatchlistItem.objects.get_or_create(
             user=user,
