@@ -1,20 +1,29 @@
-from models import CryptoPortfolio
-
-from reporters import JsonReporter, CsvReporter, ConsoleReporter, get_reporter
-
-import json
-import pytest
 import csv
-
+import json
 from io import StringIO
+
+import pytest
 from rich.console import Console
+
+from models import CryptoPortfolio
+from reporters import get_reporter
+
+
+def _section_rows(rows, start_index):
+    section_rows = []
+
+    for row in rows[start_index + 1:]:
+        if not row:
+            break
+        section_rows.append(row)
+
+    return section_rows
 
 
 class TestReporter:
     def test_get_reporter_unknown_format(self):
         with pytest.raises(ValueError):
             get_reporter("unknown")
-
 
 class TestJsonReporter:
 
@@ -61,23 +70,13 @@ class TestCsvReporter:
         header = ["Name", "Symbol", "Price", "24h Change"]
 
         gainers_header_index = rows.index(header)
-        gainers_rows = []
-
-        for row in rows[gainers_header_index + 1:]:
-            if not row:
-                break
-            gainers_rows.append(row)
+        gainers_rows = _section_rows(rows, gainers_header_index)
 
         losers_header_index = rows.index(
             header,
             gainers_header_index + 1,
         )
-        losers_rows = []
-
-        for row in rows[losers_header_index + 1:]:
-            if not row:
-                break
-            losers_rows.append(row)
+        losers_rows = _section_rows(rows, losers_header_index)
 
         gainers_symbols = [row[1] for row in gainers_rows]
         losers_symbols = [row[1] for row in losers_rows]
