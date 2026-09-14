@@ -65,7 +65,7 @@ class SnapshotViewSet(ReadOnlyModelViewSet):
 class CoinViewSet(ReadOnlyModelViewSet):
     tags = ["Coins"]
     permission_classes = [IsAdminOrReadOnly]
-    queryset = Coin.objects.prefetch_related("prices").all()
+    queryset = Coin.objects.prefetch_related("prices").order_by("id")
     serializer_class = CoinSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = CoinFilter
