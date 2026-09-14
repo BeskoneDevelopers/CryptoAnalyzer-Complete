@@ -211,3 +211,15 @@ SIMPLE_JWT = {
 
 EXCHANGE_PROVIDER = os.getenv("EXCHANGE_PROVIDER", "coingecko")
 
+CELERY_BROKER_URL = "redis://localhost:6379"
+CELERY_RESULT_BACKEND = "redis://localhost:6379"
+
+CELERY_BEAT_SCHEDULE = {
+    "fetch-snapshot-every-5-minutes": {
+        "task": "analyzer.tasks.fetch_snapshot_task",
+        "schedule": 300.0,
+        "kwargs": {"provider": "coingecko", "limit": 10}
+    }
+}
+
+

@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from unittest.mock import patch
 
@@ -246,3 +246,72 @@ class AnalyticsAPITest(TestCase):
             self.assertEqual(len(results["results"]), 1)
             self.assertEqual(results["results"][0]["symbol"], "pep")
 
+
+class CeleryAPITest(TestCase):
+
+    @patch("analyzer.tasks._fetch_data")
+    def test_start_task_snapshot(self, mock_fetch):
+        from analyzer.tasks import fetch_snapshot_task
+        mock_fetch.return_value = [
+            {
+                "name": "Bitcoin",
+                "symbol": "btc",
+                "current_price": 50000,
+                "total_volume": 1000000,
+                "price_change_percentage_24h": 5,
+            },
+            {
+                "name": "Ethereum",
+                "symbol": "eth",
+                "current_price": 3000,
+                "total_volume": 500000,
+                "price_change_percentage_24h": 3,
+            },
+        ]
+        response = self.client.post(
+            "/api/snapshots/start/",
+            data={"provider": "coingecko", "limit": 2},
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 202)
+        data = response.json()
+        self.assertIn("task_id", data)
+
+        task_id = data["task_id"]
+
+        snapshot = Snapshot.objects.get(provider="coingecko")
+        self.assertEqual(snapshot.total_coins, 2)
+        self.assertEqual(CoinPrice.objects.filter(snapshot=snapshot).count(), 2)
+        mock_fetch.assert_called_once_with("coingecko", 2)
+
+    @patch("analyzer.tasks._fetch_data")
+    def test_task_status(self, mock_featch):
+        from analyzer.tasks import fetch_snapshot_task
+
+        mock_featch.return_value = [
+            {
+                "name": "Jambo",
+                "symbol": "jmb",
+                "current_price": 62345632.0,
+                "total_volume": 124323.0,
+                "price_change_percentage_24h": 11.2,
+            }
+        ]
+        url = "/api/snapshots/start/"
+
+        response = self.client.post(
+            url,
+            data={"provider": "coingecko", "limit": 1},
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 202)
+        task_id = response.json()["task_id"]
+
+        status_url = f"/api/snapshots/tasks/{task_id}/"
+        status_response = self.client.get(status_url)
+        self.assertEqual(status_response.status_code, 200)
+
+        data = status_response.json()
+        self.assertEqual(data["status"], "SUCCESS")
+        self.assertEqual(data["result"]["total_coins"], 1)
+        mock_featch.assert_called_once_with("coingecko", 1)
