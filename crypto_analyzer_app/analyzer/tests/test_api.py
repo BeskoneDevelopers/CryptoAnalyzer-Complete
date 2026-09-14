@@ -77,8 +77,11 @@ class AnalyticsAPITest(TestCase):
     def test_market_stats_empty(self):
         response = self.client.get("/api/v1/analytics/market-stats/")
         self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.json()["error"], "Снимков нет!")
-
+        self.assertEqual(response.json()["error"]["code"], "not_found")
+        self.assertEqual(
+            response.json()["error"]["message"],
+            "Запрашиваемый ресурс не найден"
+        )
     def test_top_movers(self):
         snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=100)
         ntc = Coin.objects.create(name="Nitcoin", symbol="ntc")
@@ -98,7 +101,7 @@ class AnalyticsAPITest(TestCase):
     def test_volume_toper_empty(self):
         response = self.client.get("/api/v1/analytics/volume-leaders/")
         self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.json()["error"], "Снимков нет!")
+        self.assertEqual(response.json()["error"]["code"], "not_found")
 
     def test_coins_filter_price_range(self):
         snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=100000)

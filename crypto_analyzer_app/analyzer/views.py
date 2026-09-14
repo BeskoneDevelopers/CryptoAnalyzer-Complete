@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.exceptions import NotFound
 
 from .models import Coin, CoinPrice, Snapshot, WatchlistItem
 from .permissions import IsAdminOrReadOnly
@@ -139,7 +140,8 @@ class MarketStatusView(APIView):
     def get(self, request, version=None):
         stats = get_market_stats()
         if "error" in stats:
-            return Response(stats, status=404)
+            raise NotFound("Снимков нет")
+
         return Response(stats)
 
 
@@ -148,8 +150,9 @@ class TopMoversView(APIView):
 
     def get(self, request, version=None):
         move = get_top_movers()
+
         if isinstance(move, dict) and "error" in move:
-            return Response(move, status=404)
+            raise NotFound("Снимков нет")
 
         serializer = CoinPriceAnalyticSerializer(move, many=True)
         return Response(serializer.data)
@@ -160,8 +163,9 @@ class VolumeTopView(APIView):
 
     def get(self, request, version=None):
         toper = get_top_volume()
+
         if isinstance(toper, dict) and "error" in toper:
-            return Response(toper, status=404)
+            raise NotFound("Снимков нет")
 
         serializer = CoinPriceAnalyticSerializer(toper, many=True)
         return Response(serializer.data)
