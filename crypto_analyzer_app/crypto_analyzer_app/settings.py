@@ -242,14 +242,5 @@ SPECTACULAR_SETTINGS = {
     "SWAGGER_UI_SETTINGS": {
         "persistAuthorization": True,
     },
-    "SECURITY": [
-        {
-            "BearerAuth": {
-                "type": "http",
-                "scheme": "bearer",
-                "bearerFormat": "JWT",
-            }
-        }
-    ],
     "SCHEMA_PATH_PREFIX": "/api/v1",
 }

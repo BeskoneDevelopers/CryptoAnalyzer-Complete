@@ -97,7 +97,12 @@ class WatchlistViewSet(ModelViewSet):
         return WatchlistOutputSerializer
 
     def get_queryset(self):
-        return WatchlistItem.objects.filter(user=self.request.user).select_related("coin")
+        if getattr(self, "swagger_fake_view", False):
+            return WatchlistItem.objects.none()
+
+        return WatchlistItem.objects.filter(
+            user=self.request.user
+        ).select_related("coin")
 
     @extend_schema(
         summary="Добавление монеты в Watchlist",
@@ -137,8 +142,17 @@ class WatchlistViewSet(ModelViewSet):
 class MarketStatusView(APIView):
     tags = ["Analytics"]
 
+    @extend_schema(
+        summary="Получить состояние рынка",
+        responses={
+            200: OpenApiResponse(description="Статистика рынка"),
+            404: OpenApiResponse(description="Снимки не найдены"),
+            429: OpenApiResponse(description="Превышен лимит запросов"),
+        },
+    )
     def get(self, request, version=None):
         stats = get_market_stats()
+
         if "error" in stats:
             raise NotFound("Снимков нет")
 
@@ -148,6 +162,14 @@ class MarketStatusView(APIView):
 class TopMoversView(APIView):
     tags = ["Analytics"]
 
+    @extend_schema(
+        summary="Получить лидеров роста и падения",
+        responses={
+            200: CoinPriceAnalyticSerializer(many=True),
+            404: OpenApiResponse(description="Снимки не найдены"),
+            429: OpenApiResponse(description="Превышен лимит запросов"),
+        },
+    )
     def get(self, request, version=None):
         move = get_top_movers()
 
@@ -161,6 +183,14 @@ class TopMoversView(APIView):
 class VolumeTopView(APIView):
     tags = ["Analytics"]
 
+    @extend_schema(
+        summary="Получить лидеров по объёму",
+        responses={
+            200: CoinPriceAnalyticSerializer(many=True),
+            404: OpenApiResponse(description="Снимки не найдены"),
+            429: OpenApiResponse(description="Превышен лимит запросов"),
+        },
+    )
     def get(self, request, version=None):
         toper = get_top_volume()
 
