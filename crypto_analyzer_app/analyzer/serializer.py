@@ -4,14 +4,6 @@ from rest_framework import serializers
 from .models import Coin, CoinPrice, Snapshot, WatchlistItem
 from .services import add_to_watchlist, validate_symbol
 
-# class CoinFilter(filters.FilterSet):
-#     symbol = filters.CharFilter(lookup_expr="iexact")
-#
-#     class Meta:
-#         model = Coin
-#         fields = ["symbol"]
-
-
 class CoinFilter(filters.FilterSet):
     symbol = filters.CharFilter(lookup_expr="iexact")
     min_price = filters.NumberFilter(method="filter_min_price", field_name="min_price", label="max price")
