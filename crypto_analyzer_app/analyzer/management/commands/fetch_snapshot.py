@@ -40,10 +40,10 @@ class Command(BaseCommand):
                 CoinPrice.objects.create(
                     coin=coin,
                     snapshot=snapshot,
-                    price=coin_data.get("current_price") or 0,
-                    volume_24h=coin_data.get("total_volume") or 0,
-                    change_24h=coin_data.get("price_change_percentage_24h") or 0,
-                    market_cap=coin_data.get("market_cap") or 0
+                    price=coin_data.get("current_price"),
+                    volume_24h=coin_data.get("total_volume"),
+                    change_24h=coin_data.get("price_change_percentage_24h"),
+                    market_cap=coin_data.get("market_cap"),
                 )
 
             total_cap = CoinPrice.objects.filter(
