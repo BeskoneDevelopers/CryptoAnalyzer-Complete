@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from  rest_framework.response import Response
 from django_filters import rest_framework as filters
 
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from rest_framework.permissions import IsAuthenticated
 
@@ -12,12 +12,12 @@ from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, Watchlis
 from .services import remove_from_watchlist
 
 
-class SnapshotViewSet(ModelViewSet):
+class SnapshotViewSet(ReadOnlyModelViewSet):
     queryset = Snapshot.objects.prefetch_related("coin_prices").all()
     serializer_class = SnapshotSerializer
 
 
-class CoinViewSet(ModelViewSet):
+class CoinViewSet(ReadOnlyModelViewSet):
     queryset = Coin.objects.all()
     serializer_class = CoinSerializer
     filter_backends = [filters.DjangoFilterBackend]

@@ -1,7 +1,6 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from analyzer.models import Coin, WatchlistItem
-
 from unittest.mock import patch
 
 User = get_user_model()
@@ -47,7 +46,7 @@ class WatchlistAPI(TestCase):
         self.assertEqual(
             WatchlistItem.objects.filter(
                 user=self.user,
-                coin__symbol="btc",
+                coin__symbol="BTC",
             ).count(),
             1
         )
@@ -105,3 +104,38 @@ class WatchlistAPI(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_refresh_token_cannot_be_reused_after_rotation(self):
+        user = User.objects.create_user(
+            username="jwt_user",
+            password="test_password_123",
+        )
+
+        token_response = self.client.post(
+            "/api/token/",
+            {
+                "username": user.username,
+                "password": "test_password_123",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(token_response.status_code, 200)
+
+        refresh = token_response.json()["refresh"]
+
+        first_refresh = self.client.post(
+            "/api/token/refresh/",
+            {"refresh": refresh},
+            content_type="application/json",
+        )
+
+        self.assertEqual(first_refresh.status_code, 200)
+
+        second_refresh = self.client.post(
+            "/api/token/refresh/",
+            {"refresh": refresh},
+            content_type="application/json",
+        )
+
+        self.assertEqual(second_refresh.status_code, 401)

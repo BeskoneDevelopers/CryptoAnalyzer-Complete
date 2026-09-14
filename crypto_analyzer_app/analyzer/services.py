@@ -71,16 +71,16 @@ def validate_symbol(symbol):
 
 
 def add_to_watchlist(user, symbol, coin_data):
+    symbol = symbol.strip().upper()
+
     coin, _ = Coin.objects.get_or_create(
         symbol=symbol,
         defaults={"name": coin_data["name"]},
     )
-
     watchlist, _ = WatchlistItem.objects.get_or_create(
         user=user,
         coin=coin,
     )
-
     return watchlist
 
 
@@ -88,20 +88,20 @@ def remove_from_watchlist(user, symbol):
     if not symbol or not user:
         return {"error": "Передана неполная информация"}
 
-    delete, _ = WatchlistItem.objects.filter(
+    symbol = symbol.strip().upper()
+
+    deleted, _ = WatchlistItem.objects.filter(
         user=user,
         coin__symbol=symbol,
     ).delete()
-
-    if delete:
+    if deleted:
         return {
             "valid": True,
-            "message": "Данные успешно удалены"
+            "message": "Данные успешно удалены",
         }
-
     return {
         "valid": False,
-        "message": "Данные не найдены"
+        "message": "Данные не найдены",
     }
 
 

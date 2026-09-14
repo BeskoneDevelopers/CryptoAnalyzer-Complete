@@ -50,12 +50,37 @@ class WatchlistTests(TestCase):
         )
 
         self.assertEqual(result.user, user)
-        self.assertEqual(result.coin.symbol, "btc")
+        self.assertEqual(result.coin.symbol, "BTC")
         self.assertEqual(result.coin.name, "Bitcoin")
 
     def test_remove_from_watchlist_success(self):
         user = User.objects.create_user(username="tester", password="321")
-        coin = Coin.objects.create(name="Bitcoin", symbol="btc")
+        coin = Coin.objects.create(name="Bitcoin", symbol="BTC")
         WatchlistItem.objects.create(user=user, coin=coin)
-        result = remove_from_watchlist(user, "btc")
+        result = remove_from_watchlist(user, "BTC")
         self.assertEqual(result, {"valid": True, "message": "Данные успешно удалены"})
+
+    def test_coin_endpoint_is_read_only(self):
+        response = self.client.post(
+            "/api/coins/",
+            {
+                "name": "Bitcoin",
+                "symbol": "BTC",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 405)
+
+    def test_snapshot_endpoint_is_read_only(self):
+        response = self.client.post(
+            "/api/snapshots/",
+            {
+                "provider": "test",
+                "total_coins": 1,
+                "total_market_cap": "100.00",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 405)

@@ -42,7 +42,7 @@ class WatchlistInputSerializer(serializers.Serializer):
     symbol = serializers.CharField()
 
     def validate(self, attrs):
-        symbol = attrs["symbol"].strip().lower()
+        symbol = attrs["symbol"].strip().upper()
 
         result = service_validate_symbol(symbol)
 
