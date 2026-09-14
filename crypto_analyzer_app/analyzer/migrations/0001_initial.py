@@ -5,51 +5,49 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Coin',
+            name="Coin",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100, unique=True)),
-                ('symbol', models.CharField(max_length=10, unique=True)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("name", models.CharField(max_length=100, unique=True)),
+                ("symbol", models.CharField(max_length=10, unique=True)),
             ],
             options={
-                'verbose_name_plural': 'coins',
+                "verbose_name_plural": "coins",
             },
         ),
         migrations.CreateModel(
-            name='Snapshot',
+            name="Snapshot",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('provider', models.CharField(max_length=255)),
-                ('total_coins', models.IntegerField()),
-                ('total_market_cap', models.DecimalField(decimal_places=8, max_digits=24)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("provider", models.CharField(max_length=255)),
+                ("total_coins", models.IntegerField()),
+                ("total_market_cap", models.DecimalField(decimal_places=8, max_digits=24)),
             ],
             options={
-                'verbose_name_plural': 'snapshots',
+                "verbose_name_plural": "snapshots",
             },
         ),
         migrations.CreateModel(
-            name='CoinPrice',
+            name="CoinPrice",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('price', models.DecimalField(decimal_places=8, max_digits=24)),
-                ('volume_24h', models.DecimalField(decimal_places=8, max_digits=24)),
-                ('change_24h', models.DecimalField(decimal_places=8, max_digits=24)),
-                ('coin', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='analyzer.coin')),
-                ('snapshot', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='analyzer.snapshot')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("price", models.DecimalField(decimal_places=8, max_digits=24)),
+                ("volume_24h", models.DecimalField(decimal_places=8, max_digits=24)),
+                ("change_24h", models.DecimalField(decimal_places=8, max_digits=24)),
+                ("coin", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="analyzer.coin")),
+                ("snapshot", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="analyzer.snapshot")),
             ],
             options={
-                'verbose_name_plural': 'coin_prices',
-                'indexes': [models.Index(fields=['snapshot', 'coin'], name='analyzer_co_snapsho_28cd91_idx')],
-                'unique_together': {('coin', 'snapshot')},
+                "verbose_name_plural": "coin_prices",
+                "indexes": [models.Index(fields=["snapshot", "coin"], name="analyzer_co_snapsho_28cd91_idx")],
+                "unique_together": {("coin", "snapshot")},
             },
         ),
     ]

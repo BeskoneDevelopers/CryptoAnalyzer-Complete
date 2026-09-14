@@ -4,14 +4,13 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('analyzer', '0004_watchlistitem'),
+        ("analyzer", "0004_watchlistitem"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='watchlistitem',
-            options={'ordering': ['-added_at'], 'verbose_name_plural': 'list_items'},
+            name="watchlistitem",
+            options={"ordering": ["-added_at"], "verbose_name_plural": "list_items"},
         ),
     ]
