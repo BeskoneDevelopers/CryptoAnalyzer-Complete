@@ -1,21 +1,15 @@
-from celery.result import AsyncResult
-from django_filters import rest_framework as filters
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
+from  rest_framework.response import Response
+from django_filters import rest_framework as filters
 from rest_framework.views import APIView
+
 from rest_framework.viewsets import ModelViewSet
 
-from .models import Coin, Snapshot, WatchlistItem
-from .serializer import (
-    CoinFilter,
-    CoinPriceAnalyticSerializer,
-    CoinSerializer,
-    SnapshotSerializer,
-    WatchlistInputSerializer,
-    WatchlistOutputSerializer,
-)
-from .services import get_market_stats, get_top_movers, get_top_volume, remove_from_watchlist
+from rest_framework.permissions import IsAuthenticated
+
+from .models import Snapshot, Coin, WatchlistItem
+from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, WatchlistInputSerializer, WatchlistOutputSerializer, CoinPriceAnalyticSerializer
+from .services import remove_from_watchlist, get_market_stats, get_top_movers, get_top_volume
 from .tasks import fetch_snapshot_task
 
 
@@ -25,16 +19,17 @@ class SnapshotViewSet(ModelViewSet):
 
 
 class CoinViewSet(ModelViewSet):
-    queryset = Coin.objects.prefetch_related("prices").all()
+    queryset = (
+        Coin.objects
+        .prefetch_related("prices")
+        .order_by("id")
+    )
     serializer_class = CoinSerializer
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = CoinFilter
 
-
 class WatchlistViewSet(ModelViewSet):
-    permission_classes = [
-        IsAuthenticated,
-    ]
+    permission_classes = [IsAuthenticated,]
 
     def get_serializer_class(self):
         if self.action in ("create", "delete_watchlist"):
@@ -57,7 +52,10 @@ class WatchlistViewSet(ModelViewSet):
     def delete_watchlist(self, request):
         symbol = request.data.get("symbol")
         result = remove_from_watchlist(request.user, symbol)
-        return Response(result)
+        if result.get("valid") is False:
+            return Response(result, status=404)
+
+        return Response(result, status=200)
 
 
 class MarketStatusView(APIView):
@@ -87,16 +85,23 @@ class VolumeTopView(APIView):
         serializer = CoinPriceAnalyticSerializer(toper, many=True)
         return Response(serializer.data)
 
-
 class StartSnapshotTaskView(APIView):
     def post(self, request):
         provider = request.data.get("provider", "coingecko")
         limit = request.data.get("limit", 3)
-        task = fetch_snapshot_task.delay(provider, limit)
-        return Response({"task_id": task.id}, status=202)
 
+        task = fetch_snapshot_task.delay(provider, limit)
+
+        return Response(
+            {"task_id": task.id},
+            status=202,
+        )
 
 class TaskStatusView(APIView):
     def get(self, request, task_id):
-        result = AsyncResult(task_id)
-        return Response({"status": result.status, "result": result.result})
+        result = fetch_snapshot_task.AsyncResult(task_id)
+
+        return Response({
+            "status": result.status,
+            "result": str(result.result) if result.failed() else result.result,
+        })
