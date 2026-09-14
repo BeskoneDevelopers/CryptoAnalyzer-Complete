@@ -120,6 +120,8 @@ class SqliteStorage(BaseStorage):
                 ON a.symbol = b.symbol
             WHERE a.cadr_id = ?
               AND b.cadr_id = ?
+              AND a.price IS NOT NULL
+              AND b.price IS NOT NULL
             GROUP BY a.symbol
             """,
             (id1, id2)
@@ -127,39 +129,32 @@ class SqliteStorage(BaseStorage):
 
         return rows
 
-    def get_top_gainers_last(self, limit: int = 5):
+    def _get_top_last(self, limit: int, direction: str):
+        if direction not in {"ASC", "DESC"}:
+            raise ValueError(f"Некорректное направление сортировки: {direction}")
+
         rows = self.conn.execute(
-            """
+            f"""
             SELECT name, symbol, price, "24h_change"
             FROM coin_price
             WHERE cadr_id = (
                 SELECT MAX(id)
                 FROM cadr
             )
-            ORDER BY "24h_change" DESC
+            ORDER BY "24h_change" {direction}
             LIMIT ?
             """,
             (limit,)
         ).fetchall()
 
         return rows
+
+    def get_top_gainers_last(self, limit: int = 5):
+        return self._get_top_last(limit, "DESC")
 
     def get_top_loser_last(self, limit: int = 5):
-        rows = self.conn.execute(
-            """
-            SELECT name, symbol, price, "24h_change"
-            FROM coin_price
-            WHERE cadr_id = (
-                SELECT MAX(id)
-                FROM cadr
-            )
-            ORDER BY "24h_change" ASC
-            LIMIT ?
-            """,
-            (limit,)
-        ).fetchall()
+        return self._get_top_last(limit, "ASC")
 
-        return rows
 
     def get_coin_history(self, symbol: str):
         rows = self.conn.execute(
