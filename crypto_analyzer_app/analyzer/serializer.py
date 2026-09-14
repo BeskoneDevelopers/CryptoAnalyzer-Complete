@@ -1,16 +1,14 @@
-from rest_framework import serializers
-from .models import Coin, CoinPrice, Snapshot, WatchlistItem
+from typing import Any
 
+from django.db.models import QuerySet
 from django_filters import rest_framework as filters
+from rest_framework import serializers
+from rest_framework.request import Request
 
-from .services import validate_symbol as service_validate_symbol, add_to_watchlist
+from .models import Coin, CoinPrice, Snapshot, WatchlistItem
+from .services import add_to_watchlist
+from .services import validate_symbol as service_validate_symbol
 
-# class CoinFilter(filters.FilterSet):
-#     symbol = filters.CharFilter(lookup_expr="iexact")
-#
-#     class Meta:
-#         model = Coin
-#         fields = ["symbol"]
 
 class CoinFilter(filters.FilterSet):
     symbol = filters.CharFilter(lookup_expr="iexact")
@@ -29,27 +27,22 @@ class CoinFilter(filters.FilterSet):
         model = Coin
         fields = ["symbol", "min_price", "max_price"]
 
-    def _latest_coin_ids(self, price_lookup):
+    def _latest_coin_ids(self, price_lookup: dict[str, Any]) -> QuerySet[CoinPrice, int]:
         if not hasattr(self, "snapshot"):
             self.snapshot = Snapshot.objects.last()
 
         if not self.snapshot:
-            return Coin.objects.none()
+            return CoinPrice.objects.none().values_list("coin_id", flat=True)
 
-        return CoinPrice.objects.filter(
-            snapshot=self.snapshot,
-            **price_lookup,
-        ).values_list("coin_id", flat=True)
+        return CoinPrice.objects.filter(snapshot=self.snapshot, **price_lookup).values_list("coin_id", flat=True)
 
-    def filter_max_price(self, queryset, name, value):
+    def filter_max_price(self, queryset: QuerySet[Coin], name: str, value: Any) -> QuerySet[Coin]:
         coin_ids = self._latest_coin_ids({"price__lte": value})
         return queryset.filter(id__in=coin_ids)
 
-    def filter_min_price(self, queryset, name, value):
+    def filter_min_price(self, queryset: QuerySet[Coin], name: str, value: Any) -> QuerySet[Coin]:
         coin_ids = self._latest_coin_ids({"price__gte": value})
         return queryset.filter(id__in=coin_ids)
-
-
 
 
 class CoinPriceSerializer(serializers.ModelSerializer):
@@ -73,7 +66,6 @@ class CoinSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "symbol", "prices"]
 
 
-
 class SnapshotSerializer(serializers.ModelSerializer):
     coin_prices = CoinPriceSerializer(many=True, read_only=True)
 
@@ -82,33 +74,32 @@ class SnapshotSerializer(serializers.ModelSerializer):
         fields = ["id", "provider", "total_coins", "total_market_cap", "coin_prices"]
 
 
-
 class WatchlistInputSerializer(serializers.Serializer):
     symbol = serializers.CharField()
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         symbol = attrs["symbol"].strip().lower()
 
         result = service_validate_symbol(symbol)
 
         if not result:
-            raise serializers.ValidationError(
-                f"Монета {symbol} не найдена"
-            )
+            raise serializers.ValidationError(f"Монета {symbol} не найдена")
 
         attrs["symbol"] = symbol
         attrs["coin_data"] = result
 
         return attrs
 
-    def create(self, validated_data):
-        user = self.context["request"].user
+    def create(self, validated_data: dict[str, Any]) -> WatchlistItem:
+        request: Request = self.context["request"]
+        user = request.user
 
         return add_to_watchlist(
             user=user,
             symbol=validated_data["symbol"],
             coin_data=validated_data["coin_data"],
         )
+
 
 class WatchlistOutputSerializer(serializers.ModelSerializer):
     coin = serializers.StringRelatedField()

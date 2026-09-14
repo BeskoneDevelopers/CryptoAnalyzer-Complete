@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 
 from analyzer.tasks import fetch_snapshot_task
 
+
 class Command(BaseCommand):
     help = "Извлекает крипто-данные и создает снимок"
 

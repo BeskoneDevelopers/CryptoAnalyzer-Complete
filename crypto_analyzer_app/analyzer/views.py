@@ -1,15 +1,25 @@
-from rest_framework.decorators import action
-from  rest_framework.response import Response
-from django_filters import rest_framework as filters
-from rest_framework.views import APIView
+from typing import Any
 
+from django.db.models import QuerySet
+from django_filters import rest_framework as filters
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
+from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
-from rest_framework.permissions import IsAuthenticated
-
-from .models import Snapshot, Coin, WatchlistItem
-from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, WatchlistInputSerializer, WatchlistOutputSerializer, CoinPriceAnalyticSerializer
-from .services import remove_from_watchlist, get_market_stats, get_top_movers, get_top_volume
+from .models import Coin, Snapshot, WatchlistItem
+from .serializer import (
+    CoinFilter,
+    CoinPriceAnalyticSerializer,
+    CoinSerializer,
+    SnapshotSerializer,
+    WatchlistInputSerializer,
+    WatchlistOutputSerializer,
+)
+from .services import get_market_stats, get_top_movers, get_top_volume, remove_from_watchlist
 from .tasks import fetch_snapshot_task
 
 
@@ -19,27 +29,26 @@ class SnapshotViewSet(ModelViewSet):
 
 
 class CoinViewSet(ModelViewSet):
-    queryset = (
-        Coin.objects
-        .prefetch_related("prices")
-        .order_by("id")
-    )
+    queryset = Coin.objects.prefetch_related("prices").order_by("id")
     serializer_class = CoinSerializer
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = CoinFilter
 
-class WatchlistViewSet(ModelViewSet):
-    permission_classes = [IsAuthenticated,]
 
-    def get_serializer_class(self):
+class WatchlistViewSet(ModelViewSet):
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def get_serializer_class(self) -> type[BaseSerializer]:
         if self.action in ("create", "delete_watchlist"):
             return WatchlistInputSerializer
         return WatchlistOutputSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[WatchlistItem]:
         return WatchlistItem.objects.filter(user=self.request.user).select_related("coin")
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
@@ -49,7 +58,7 @@ class WatchlistViewSet(ModelViewSet):
         return Response(output_serializer.data, status=201)
 
     @action(detail=False, methods=["delete"], url_path="remove")
-    def delete_watchlist(self, request):
+    def delete_watchlist(self, request: Request) -> Response:
         symbol = request.data.get("symbol")
         result = remove_from_watchlist(request.user, symbol)
         if result.get("valid") is False:
@@ -59,7 +68,7 @@ class WatchlistViewSet(ModelViewSet):
 
 
 class MarketStatusView(APIView):
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         stats = get_market_stats()
         if "error" in stats:
             return Response(stats, status=404)
@@ -67,7 +76,7 @@ class MarketStatusView(APIView):
 
 
 class TopMoversView(APIView):
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         move = get_top_movers()
         if isinstance(move, dict) and "error" in move:
             return Response(move, status=404)
@@ -77,7 +86,7 @@ class TopMoversView(APIView):
 
 
 class VolumeTopView(APIView):
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         toper = get_top_volume()
         if isinstance(toper, dict) and "error" in toper:
             return Response(toper, status=404)
@@ -85,8 +94,9 @@ class VolumeTopView(APIView):
         serializer = CoinPriceAnalyticSerializer(toper, many=True)
         return Response(serializer.data)
 
+
 class StartSnapshotTaskView(APIView):
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         provider = request.data.get("provider", "coingecko")
         limit = request.data.get("limit", 3)
 
@@ -97,11 +107,14 @@ class StartSnapshotTaskView(APIView):
             status=202,
         )
 
+
 class TaskStatusView(APIView):
-    def get(self, request, task_id):
+    def get(self, request: Request, task_id: str) -> Response:
         result = fetch_snapshot_task.AsyncResult(task_id)
 
-        return Response({
-            "status": result.status,
-            "result": str(result.result) if result.failed() else result.result,
-        })
+        return Response(
+            {
+                "status": result.status,
+                "result": str(result.result) if result.failed() else result.result,
+            }
+        )

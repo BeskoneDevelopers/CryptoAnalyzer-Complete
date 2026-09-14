@@ -1,12 +1,13 @@
+from datetime import timedelta
+
 import requests
 from celery import shared_task
 from django.conf import settings
-
-from analyzer.models import Snapshot, Coin, CoinPrice
 from django.db.models import Sum
-
-from datetime import timedelta
 from django.utils import timezone
+
+from analyzer.models import Coin, CoinPrice, Snapshot
+
 
 def _fetch_data(provider, limit):
     if provider == "coingecko":
@@ -21,11 +22,12 @@ def _fetch_data(provider, limit):
 
 def _fetch_coingecko(limit: int):
     url = "https://api.coingecko.com/api/v3/coins/markets"
-    params = {
+
+    params: dict[str, str | int] = {
         "vs_currency": "usd",
         "order": "market_cap_desc",
         "per_page": limit,
-        "page": 1
+        "page": 1,
     }
 
     with requests.Session() as session:
@@ -34,17 +36,23 @@ def _fetch_coingecko(limit: int):
         raw_data = response.json()
         return raw_data
 
+
 def _fetch_coinmarketcap(limit: int):
     url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest"
 
-    header = {
-        "X-CMC_PRO_API_KEY": settings.CMC_API_KEY,
-        "Accept": "application/json"
+    api_key = settings.CMC_API_KEY
+
+    if not api_key:
+        raise ValueError("Отсутствует API ключ CoinMarketCap")
+
+    header: dict[str, str] = {
+        "X-CMC_PRO_API_KEY": api_key,
+        "Accept": "application/json",
     }
 
-    params = {
+    params: dict[str, str | int] = {
         "convert": "USD",
-        "limit": limit
+        "limit": limit,
     }
 
     with requests.Session() as session:
@@ -55,70 +63,57 @@ def _fetch_coinmarketcap(limit: int):
 
         normalized = []
         for item in raw_data["data"]:
-            normalized.append({
-                "name": item["name"],
-                "symbol": item["symbol"].lower(),
-                "current_price": item["quote"]["USD"]["price"],
-                "total_volume": item["quote"]["USD"]["volume_24h"],
-                "price_change_percentage_24h": item["quote"]["USD"]["percent_change_24h"]
-            })
+            normalized.append(
+                {
+                    "name": item["name"],
+                    "symbol": item["symbol"].lower(),
+                    "current_price": item["quote"]["USD"]["price"],
+                    "total_volume": item["quote"]["USD"]["volume_24h"],
+                    "price_change_percentage_24h": item["quote"]["USD"]["percent_change_24h"],
+                }
+            )
 
         return normalized
 
+
 def _get_retry_countdown(retries: int) -> int:
-    return min(60 * (2 ** retries), 300)
+    return min(60 * (2**retries), 300)
+
 
 @shared_task(bind=True, max_retries=3)
 def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
-
-
     if provider == "coinmarketcap" and not settings.CMC_API_KEY:
         return {"error": "Отсутствует API ключ"}
 
-    recent = Snapshot.objects.filter(
-        provider=provider,
-        created_at__gte=timezone.now() - timedelta(minutes=3)
-    ).first()
+    recent = Snapshot.objects.filter(provider=provider, created_at__gte=timezone.now() - timedelta(minutes=3)).first()
     if recent:
-        return {"snapshot_id": recent.id, "already_exists": True}
+        return {"snapshot_id": recent.pk, "already_exists": True}
 
     try:
         coins_data = _fetch_data(provider, limit)
     except (
-            requests.exceptions.ConnectionError,
-            requests.exceptions.Timeout,
+        requests.exceptions.ConnectionError,
+        requests.exceptions.Timeout,
     ) as exc:
         countdown = _get_retry_countdown(self.request.retries)
         raise self.retry(exc=exc, countdown=countdown)
 
-    snapshot = Snapshot.objects.create(
-        provider=provider,
-        total_coins=len(coins_data),
-        total_market_cap=0
-    )
+    snapshot = Snapshot.objects.create(provider=provider, total_coins=len(coins_data), total_market_cap=0)
 
     for coin_data in coins_data:
         name = coin_data.get("name")
         symbol = coin_data.get("symbol")
-        current_price = coin_data.get('current_price', 0)
-        volume = coin_data.get('total_volume', 0)
-        change = coin_data.get('price_change_percentage_24h', 0)
+        current_price = coin_data.get("current_price", 0)
+        volume = coin_data.get("total_volume", 0)
+        change = coin_data.get("price_change_percentage_24h", 0)
 
-        coin, created = Coin.objects.get_or_create(
-            symbol=symbol,
-            defaults={"name": name}
-        )
+        coin, created = Coin.objects.get_or_create(symbol=symbol, defaults={"name": name})
 
         CoinPrice.objects.create(
-            coin=coin,
-            snapshot=snapshot,
-            price=current_price or 0,
-            volume_24h=volume or 0,
-            change_24h=change or 0
+            coin=coin, snapshot=snapshot, price=current_price or 0, volume_24h=volume or 0, change_24h=change or 0
         )
 
-    total_market_cap = CoinPrice.objects.filter(snapshot=snapshot).aggregate(
-        total=Sum('price'))['total'] or 0
+    total_market_cap = CoinPrice.objects.filter(snapshot=snapshot).aggregate(total=Sum("price"))["total"] or 0
     snapshot.total_market_cap = total_market_cap
     snapshot.save()
-    return {"snapshot_id": snapshot.id, "total_coins": snapshot.total_coins}
+    return {"snapshot_id": snapshot.pk, "total_coins": snapshot.total_coins}
