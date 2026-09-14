@@ -30,16 +30,31 @@ class WatchlistAPI(TestCase):
         response = self.client.get("/api/v1/watchlist/", HTTP_AUTHORIZATION=self.auth_header)
         self.assertEqual(response.status_code, 200)
 
+    @patch("analyzer.serializer.add_to_watchlist")
     @patch("analyzer.serializer.validate_symbol")
-    def test_add_to_watchlist(self, mock_validate):
+    def test_add_to_watchlist(self, mock_validate, mock_add):
         mock_validate.return_value = {"valid": True, "name": "Bitcoin"}
 
-        response = self.client.post(
-            "/api/v1/watchlist/", {"symbol": "btc"}, content_type="application/json", HTTP_AUTHORIZATION=self.auth_header
+        coin = Coin.objects.create(
+            name="Bitcoin",
+            symbol="btc",
         )
-
+        watchlist_item = WatchlistItem.objects.create(
+            user=self.user,
+            coin=coin,
+        )
+        mock_add.return_value = watchlist_item
+        response = self.client.post(
+            "/api/v1/watchlist/",
+            {"symbol": "btc"},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["coin"], "Bitcoin")
+
+        mock_validate.assert_called_once_with("btc")
+        mock_add.assert_called_once_with(self.user, "btc")
 
     def test_watchlist_query_count(self):
         coin_one = Coin.objects.create(name="Bobrcoin", symbol="bobr")
