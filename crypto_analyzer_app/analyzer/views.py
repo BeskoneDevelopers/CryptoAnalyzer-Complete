@@ -72,8 +72,14 @@ class CoinViewSet(ReadOnlyModelViewSet):
     search_fields = ["symbol", "name"]
 
     @action(detail=True, methods=["get"], pagination_class=CoinPricePagination)
-    def history(self, request, pk=None):
+    def history(self, request, pk=None, version=None):
         prices = CoinPrice.objects.filter(coin_id=pk)
+        page = self.paginate_queryset(prices)
+
+        if page is not None:
+            serializer = CoinPriceAnalyticSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
         serializer = CoinPriceAnalyticSerializer(prices, many=True)
         return Response(serializer.data)
 
@@ -121,7 +127,7 @@ class WatchlistViewSet(ModelViewSet):
         },
     )
     @action(detail=False, methods=["delete"], url_path="remove")
-    def delete_watchlist(self, request):
+    def delete_watchlist(self, request, version=None):
         symbol = request.data.get("symbol")
         result = remove_from_watchlist(request.user, symbol)
         return Response(result)
