@@ -6,12 +6,10 @@ from rich.table import Table
 from rich.panel import Panel
 
 
-
-
 class ConsoleReporter(BaseReporter):
-    def __init__(self):
+    def __init__(self, console: Console | None = None):
         super().__init__()
-        self.console = Console()
+        self.console = console if console is not None else Console()
 
     def report(self, portfolio: CryptoPortfolio, provider_name: str, top_count: int = 3) -> None:
         self.console.print(Panel.fit(
@@ -37,7 +35,7 @@ class ConsoleReporter(BaseReporter):
         gainers_table.add_column("24H Change", style="green", justify="right")
 
         for coin in gainers:
-            change_str = f"+{coin.price_change_for_24h:.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
+            change_str = f"{coin.price_change_for_24h:+.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
             price_str = f"${coin.current_price:,.2f}" if coin.current_price is not None else "Данных нет"
 
             gainers_table.add_row(
@@ -61,7 +59,7 @@ class ConsoleReporter(BaseReporter):
         losers_table.add_column("24H Change", style="red", justify="right")
 
         for coin in losers:
-            change_str = f"{coin.price_change_for_24h:.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
+            change_str = f"{coin.price_change_for_24h:+.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
             price_str = f"${coin.current_price:,.2f}" if coin.current_price is not None else "Данных нет"
 
             losers_table.add_row(
@@ -80,7 +78,7 @@ class ConsoleReporter(BaseReporter):
                 border_style="blue"
             ))
 
-        if total_cap:
+        if total_cap is not None:
             self.console.print(Panel(
                 f"[bold]📈 Total Market Cap (Top {len(portfolio)})[/bold]\n"
                 f"[green]{total_cap}[/green]",

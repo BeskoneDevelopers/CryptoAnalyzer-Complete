@@ -22,13 +22,15 @@ def analyze(
     console = Console()
     try:
         provider = get_provider(source)
+        reporter = get_reporter(output)
 
         coins = provider.fetch_top_coins(limit=limit)
-        console.print(f"[green]✓ Загружено {len(coins)} монет через {provider.get_name()}[/green]")
+        console.print(
+            f"[green]✓ Загружено {len(coins)} монет через {provider.get_name()}[/green]"
+        )
 
         portfolio = CryptoPortfolio(coins)
 
-        reporter = get_reporter(output)
         reporter.report(portfolio, provider.get_name(), top_count=top)
 
     except ValueError as e:

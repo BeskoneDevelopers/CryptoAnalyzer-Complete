@@ -19,23 +19,25 @@ class CsvReporter(BaseReporter):
             writer = csv.writer(f)
 
             writer.writerow(["Crypto Market Analysis"])
-            writer.writerow([f"Generated: {self.generate_at}]"])
+            writer.writerow([f"Generated: {self.generate_at}"])
             writer.writerow([f"Provider: {provider_name}"])
             writer.writerow([])
 
             writer.writerow(["Top Gainers"])
             writer.writerow(["Name", "Symbol", "Price", "24h Change"])
             for coin in gainers:
-                price = f"{coin.current_price:,.2f}" if coin.current_price is not None else "Данных нет"
-                change = f"+{coin.price_change_for_24h:.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
+                price = f"${coin.current_price:,.2f}" if coin.current_price is not None else "Данных нет"
+                change = f"{coin.price_change_for_24h:+.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
                 writer.writerow([coin.name, coin.symbol, price, change])
+
             writer.writerow([])
 
             writer.writerow(["Top Losers"])
             writer.writerow(["Name", "Symbol", "Price", "24h Change"])
+
             for coin in losers:
                 price = f"${coin.current_price:,.2f}" if coin.current_price is not None else "Данных нет"
-                change = f"{coin.price_change_for_24h:.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
+                change = f"{coin.price_change_for_24h:+.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
                 writer.writerow([coin.name, coin.symbol, price, change])
             writer.writerow([])
 

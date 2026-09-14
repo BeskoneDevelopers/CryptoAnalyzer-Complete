@@ -32,7 +32,7 @@ class CoinMarketCapProvider(BaseProvider):
 
         with requests.Session() as session:
             session.headers.update(headers)
-            response = session.get(self.URL_API, params=params)
+            response = session.get(self.URL_API, params=params, timeout=self.time_out)
             response.raise_for_status()
             raw_data = response.json()
             data = [Coin.from_dict(item, source="coinmarketcap") for item in raw_data["data"]]
