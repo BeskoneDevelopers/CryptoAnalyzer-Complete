@@ -8,7 +8,6 @@ from django.db.models import Sum
 from datetime import timedelta
 from django.utils import timezone
 
-
 def _fetch_data(provider, limit):
     if provider == "coingecko":
         return _fetch_coingecko(limit)
@@ -66,8 +65,10 @@ def _fetch_coinmarketcap(limit: int):
 
         return normalized
 
+def _get_retry_countdown(retries: int) -> int:
+    return min(60 * (2 ** retries), 300)
 
-@shared_task(bind=True, max_retries=3, retry_backoff=True, retry_backoff_max=300)
+@shared_task(bind=True, max_retries=3)
 def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
 
 
@@ -83,8 +84,12 @@ def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
 
     try:
         coins_data = _fetch_data(provider, limit)
-    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
-        raise self.retry(exc=exc)
+    except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+    ) as exc:
+        countdown = _get_retry_countdown(self.request.retries)
+        raise self.retry(exc=exc, countdown=countdown)
 
     snapshot = Snapshot.objects.create(
         provider=provider,

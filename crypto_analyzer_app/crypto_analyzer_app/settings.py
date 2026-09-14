@@ -14,8 +14,6 @@ from pathlib import Path
 
 from datetime import timedelta
 
-from celery.bin.worker import CELERY_BEAT
-
 ######Подключение ключа с .env###########
 import os
 from dotenv import load_dotenv
@@ -215,9 +213,6 @@ EXCHANGE_PROVIDER = os.getenv("EXCHANGE_PROVIDER", "coingecko")
 
 CELERY_BROKER_URL = "redis://localhost:6379"
 CELERY_RESULT_BACKEND = "redis://localhost:6379"
-
-CELERY_TASK_DEFAULT_RETRY_DELAY = 60
-CELERY_TASK_MAX_RETRIES = 3
 
 CELERY_BEAT_SCHEDULE = {
     "fetch-snapshot-every-5-minutes": {

@@ -7,6 +7,7 @@ from django.test import TestCase
 
 from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
 from analyzer.services import add_to_watchlist, remove_from_watchlist, validate_symbol
+from analyzer.tasks import _get_retry_countdown
 
 User = get_user_model()
 
@@ -146,3 +147,9 @@ class CeleryTasksTests(TestCase):
         eth_price = CoinPrice.objects.get(coin__symbol="eth")
         self.assertEqual(eth_price.price, 3000)
         self.assertEqual(bbc_price.coin.name, "Bibcoin")
+
+    def test_retry_countdown_backoff(self):
+        self.assertEqual(_get_retry_countdown(0),60)
+        self.assertEqual(_get_retry_countdown(1),120)
+        self.assertEqual(_get_retry_countdown(2),240)
+        self.assertEqual(_get_retry_countdown(3),300)
