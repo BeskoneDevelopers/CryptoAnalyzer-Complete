@@ -4,9 +4,12 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import reset_queries
 from django.test import TestCase
+from django.http import Http404
 
 from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
 from analyzer.exceptions import custom_exception_handler
+
+from rest_framework.exceptions import MethodNotAllowed
 
 User = get_user_model()
 
@@ -188,9 +191,28 @@ class ThrottleTests(TestCase):
 
 class AnyTests(TestCase):
 
+    def test_custom_exception_handler_handles_django_http404(self):
+        response = custom_exception_handler(Http404(), {})
+
+        assert response.status_code == 404
+        assert response.data["success"] is False
+        assert response.data["error"]["code"] == "not_found"
+
     def test_custom_exception_handler_returns_json_for_unknown_error(self):
         response = custom_exception_handler(RuntimeError("boom"), {})
 
         assert response.status_code == 500
         assert response.data["success"] is False
         assert response.data["error"]["code"] == "server_error"
+
+    def test_custom_exception_handler_uses_request_method_for_method_not_allowed(self):
+        request = type("Request", (), {"method": "POST"})()
+
+        response = custom_exception_handler(
+            MethodNotAllowed("POST"),
+            {"request": request},
+        )
+
+        assert response.status_code == 405
+        assert response.data["error"]["code"] == "method_not_allowed"
+        assert response.data["error"]["message"] == "Метод POST не разрешён"

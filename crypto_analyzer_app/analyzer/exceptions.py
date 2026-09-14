@@ -10,6 +10,8 @@ from rest_framework.exceptions import (
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
+from django.http import Http404
+
 
 def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
@@ -32,9 +34,12 @@ def custom_exception_handler(exc, context):
         error_data["error"]["message"] = "Ошибка валидации данных"
         error_data["error"]["fields"] = response.data
 
+
     elif isinstance(exc, MethodNotAllowed):
+        request = context.get("request")
+        method = request.method if request else "HTTP"
         error_data["error"]["code"] = "method_not_allowed"
-        error_data["error"]["message"] = f"Метод {exc.detail} не разрешён"
+        error_data["error"]["message"] = f"Метод {method} не разрешён"
 
     elif isinstance(exc, NotAuthenticated):
         error_data["error"]["code"] = "authentication_failed"
@@ -48,7 +53,7 @@ def custom_exception_handler(exc, context):
         error_data["error"]["code"] = "permission_denied"
         error_data["error"]["message"] = "У вас недостаточно прав"
 
-    elif isinstance(exc, NotFound):
+    elif isinstance(exc, (NotFound, Http404)):
         error_data["error"]["code"] = "not_found"
         error_data["error"]["message"] = "Запрашиваемый ресурс не найден"
 
