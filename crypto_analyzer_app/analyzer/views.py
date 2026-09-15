@@ -356,9 +356,12 @@ class PortfolioSummaryView(APIView):
         responses=PortfolioSummarySerializer,
     )
     def get(self, request, version):
-        result = PortfolioService.get_summary(
-            user=request.user,
-        )
+        try:
+            result = PortfolioService.get_summary(
+                user=request.user,
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from None
 
         serializer = PortfolioSummarySerializer(result)
 

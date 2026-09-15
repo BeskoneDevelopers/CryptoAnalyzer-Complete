@@ -71,7 +71,11 @@ class PortfolioService:
 
     @staticmethod
     def get_summary(user: User):
-        balance = Balance.objects.get(user=user)
+
+        try:
+            balance = Balance.objects.get(user=user)
+        except Balance.DoesNotExist:
+            raise ValueError("Баланс пользователя не найден") from None
 
         latest_snapshot = Snapshot.objects.order_by("-created_at").first()
         if latest_snapshot is None:

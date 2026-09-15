@@ -773,6 +773,28 @@ class PortfolioAPITest(TestCase):
         self.assertIsNone(ethereum["current_price"])
         self.assertIsNone(ethereum["current_value"])
 
+    def test_summary_without_snapshot(self):
+        Snapshot.objects.all().delete()
+
+        response = self.client.get(
+            "/api/v1/portfolio/summary/",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "validation_error")
+
+    def test_summary_without_balance(self):
+        self.balance.delete()
+
+        response = self.client.get(
+            "/api/v1/portfolio/summary/",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "validation_error")
+
 
 class AnyTests(TestCase):
     def test_custom_exception_handler_handles_django_http404(self):
