@@ -57,8 +57,8 @@ htmlcov/
 # PyInstaller
 *.spec
 
-celerybeat-schedule
-celerybeat-schedule.*
+# Celery Beat
+celerybeat-schedule*
 
 # Crypto reports
 crypto_report.csv

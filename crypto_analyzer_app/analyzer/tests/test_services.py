@@ -3,10 +3,17 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
-from analyzer.services import add_to_watchlist, remove_from_watchlist, validate_symbol
+from analyzer.services import (
+    ANALYTICS_CACHE_TTL,
+    add_to_watchlist,
+    get_or_set_cache,
+    refresh_analytics_cache,
+    remove_from_watchlist,
+    validate_symbol,
+)
 from analyzer.tasks import _get_retry_countdown
 
 User = get_user_model()
@@ -141,3 +148,134 @@ class CeleryTasksTests(TestCase):
         self.assertEqual(_get_retry_countdown(1), 120)
         self.assertEqual(_get_retry_countdown(2), 240)
         self.assertEqual(_get_retry_countdown(3), 300)
+
+    @patch("analyzer.tasks.refresh_analytics_cache")
+    @patch("analyzer.tasks._fetch_data")
+    def test_does_not_refresh_cache_for_existing_snapshot(
+            self,
+            mock_fetch,
+            mock_refresh_cache,
+    ):
+        from analyzer.tasks import fetch_snapshot_task
+
+        mock_fetch.return_value = [
+            {
+                "name": "Bitcoin",
+                "symbol": "btc",
+                "current_price": 50000,
+                "total_volume": 100,
+                "price_change_percentage_24h": 5,
+            }
+        ]
+
+        fetch_snapshot_task.run("coingecko", 1)
+
+        mock_refresh_cache.reset_mock()
+
+        fetch_snapshot_task.run("coingecko", 1)
+
+        mock_refresh_cache.assert_not_called()
+
+    @patch("analyzer.tasks.refresh_analytics_cache")
+    @patch("analyzer.tasks._fetch_data")
+    def test_refresh_cache_after_snapshot_created(
+            self,
+            mock_fetch,
+            mock_refresh_cache,
+    ):
+        from analyzer.tasks import fetch_snapshot_task
+
+        mock_fetch.return_value = [
+            {
+                "name": "Bitcoin",
+                "symbol": "btc",
+                "current_price": 50000,
+                "total_volume": 100,
+                "price_change_percentage_24h": 5,
+            }
+        ]
+
+        fetch_snapshot_task.run("coingecko", 1)
+
+        mock_refresh_cache.assert_called_once_with()
+
+
+class CacheServiceTests(SimpleTestCase):
+    @patch("analyzer.services.cache")
+    def test_get_or_set_cache_miss(self, mock_cache):
+        mock_cache.get.return_value = None
+
+        loader = Mock(return_value={"value": 123})
+
+        result = get_or_set_cache("test_key", loader)
+
+        self.assertEqual(result, {"value": 123})
+        loader.assert_called_once_with()
+        mock_cache.get.assert_called_once_with("test_key")
+        mock_cache.set.assert_called_once_with(
+            "test_key",
+            {"value": 123},
+            ANALYTICS_CACHE_TTL,
+        )
+
+    @patch("analyzer.services.cache")
+    def test_get_or_set_cache_hit(self, mock_cache):
+        cached_data = {"value": 123}
+        mock_cache.get.return_value = cached_data
+
+        loader = Mock()
+
+        result = get_or_set_cache("test_key", loader)
+
+        self.assertEqual(result, cached_data)
+        mock_cache.get.assert_called_once_with("test_key")
+        loader.assert_not_called()
+        mock_cache.set.assert_not_called()
+
+    @patch("analyzer.services.cache")
+    def test_get_or_set_cache_force_refresh(self, mock_cache):
+        fresh_data = {"value": 999}
+        loader = Mock(return_value=fresh_data)
+
+        result = get_or_set_cache(
+            "test_key",
+            loader,
+            force_refresh=True,
+        )
+
+        self.assertEqual(result, fresh_data)
+        mock_cache.get.assert_not_called()
+        loader.assert_called_once_with()
+        mock_cache.set.assert_called_once_with(
+            "test_key",
+            fresh_data,
+            ANALYTICS_CACHE_TTL,
+        )
+
+    @patch("analyzer.services.cache")
+    def test_get_or_set_cache_does_not_cache_error(self, mock_cache):
+        mock_cache.get.return_value = None
+
+        error = {"error": "Снимков нет!"}
+        loader = Mock(return_value=error)
+
+        result = get_or_set_cache("test_key", loader)
+
+        self.assertEqual(result, error)
+        loader.assert_called_once_with()
+        mock_cache.set.assert_not_called()
+
+    @patch("analyzer.services.get_cached_top_volume")
+    @patch("analyzer.services.get_cached_top_movers")
+    @patch("analyzer.services.get_cached_market_stats")
+    def test_refresh_analytics_cache_forces_refresh(
+        self,
+        mock_market_stats,
+        mock_top_movers,
+        mock_top_volume,
+    ):
+        refresh_analytics_cache()
+
+        mock_market_stats.assert_called_once_with(force_refresh=True)
+        mock_top_movers.assert_called_once_with(force_refresh=True)
+        mock_top_volume.assert_called_once_with(force_refresh=True)
