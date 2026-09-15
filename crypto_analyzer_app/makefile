@@ -1,20 +1,28 @@
 COMPOSE = docker compose
 EXEC = $(COMPOSE) exec web
 MANAGE = $(EXEC) python manage.py
+RUFF = ruff
+PROJECT_ROOT = ..
 
 .PHONY: help build up logs down down-volumes restart migrate makemigrations shell createsuperuser test lint format bash install
 
 help:
 	@echo "Доступные команды:"
-	@echo "  make build        — Собрать образы"
-	@echo "  make up           — Запустить контейнеры в фоне"
-	@echo "  make logs         — Посмотреть логи"
-	@echo "  make migrate      — Применить миграции"
-	@echo "  make shell        — Зайти в shell Django"
-	@echo "  make test         — Запустить тесты"
-	@echo "  make bash         — Зайти в bash контейнера web"
-	@echo "  make down         — Остановить контейнеры"
-	@echo "  make down-volumes — Остановить контейнеры и удалить volumes"
+	@echo "  make build           — Собрать образы"
+	@echo "  make up              — Запустить контейнеры в фоне"
+	@echo "  make logs            — Посмотреть логи"
+	@echo "  make down            — Остановить контейнеры"
+	@echo "  make down-volumes    — Остановить контейнеры и удалить volumes"
+	@echo "  make restart         — Перезапустить контейнеры"
+	@echo "  make migrate         — Применить миграции"
+	@echo "  make makemigrations  — Создать миграции"
+	@echo "  make shell           — Зайти в Django shell"
+	@echo "  make createsuperuser — Создать администратора"
+	@echo "  make test            — Запустить тесты"
+	@echo "  make lint            — Проверить Ruff"
+	@echo "  make format          — Отформатировать код Ruff"
+	@echo "  make bash            — Зайти в bash контейнера web"
+	@echo "  make install         — Установить зависимости в web-контейнер"
 
 build:
 	$(COMPOSE) build
@@ -51,12 +59,12 @@ test:
 	$(MANAGE) test
 
 lint:
-	$(EXEC) ruff check .
-	$(EXEC) ruff format --check .
+	$(RUFF) check $(PROJECT_ROOT)
+	$(RUFF) format --check $(PROJECT_ROOT)
 
 format:
-	$(EXEC) ruff format .
-	$(EXEC) ruff check --fix .
+	$(RUFF) format $(PROJECT_ROOT)
+	$(RUFF) check --fix $(PROJECT_ROOT)
 
 bash:
 	$(EXEC) bash
