@@ -1,4 +1,4 @@
-# Environment variables
+﻿# Environment variables
 .env
 
 # Python
@@ -11,7 +11,8 @@ venv/
 *.log
 db.sqlite3
 /media/
-/staticfiles/
+staticfiles/
+celerybeat-schedule
 
 # IDE
 .idea/
@@ -21,19 +22,15 @@ analyze_tests.py
 analysis_prompt.txt
 
 # Байт-код и кэш
-__pycache__/
 *.py[cod]
 *$py.class
 
 # Виртуальные окружения
-venv/
-.venv/
 env/
 .env/
 ENV/
 
 # Переменные окружения
-.env
 .env.local
 .env.*.local
 !.env.example
@@ -59,5 +56,10 @@ htmlcov/
 
 # PyInstaller
 *.spec
+
 # Celery Beat
 celerybeat-schedule*
+
+# Crypto reports
+crypto_report.csv
+crypto_report.json

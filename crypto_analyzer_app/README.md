@@ -18,14 +18,21 @@ REST API для работы с криптовалютами и историей
 
 Установка
 git clone https://github.com/BeskoneDevelopers/CryptoAnalyzer-Complete.git
+cd CryptoAnalyzer-Complete
 cd crypto_analyzer_app
+
 python -m venv .venv
+
+# Windows
 .venv\Scripts\activate
+
 pip install -r requirements.txt
 
 Запуск
-# Сервер (Windows)
+# Windows — Waitress
 waitress-serve --listen=127.0.0.1:8000 crypto_analyzer_app.wsgi:application
+# Linux / production — Gunicorn
+gunicorn crypto_analyzer_app.wsgi:application --bind 0.0.0.0:8000
 # Celery worker
 celery -A crypto_analyzer_app worker -l info -P solo
 # Celery Beat

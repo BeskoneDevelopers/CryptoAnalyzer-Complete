@@ -1,14 +1,19 @@
-from celery.result import AsyncResult
+from typing import Any
+
+from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
@@ -33,7 +38,7 @@ from .tasks import fetch_snapshot_task
 
 class CoinPricePagination(CursorPagination):
     page_size = 10
-    ordering = "-snapshot__created_at"
+    ordering = "-id"
 
 
 class SnapshotViewSet(ReadOnlyModelViewSet):
@@ -57,7 +62,7 @@ class SnapshotViewSet(ReadOnlyModelViewSet):
             429: OpenApiResponse(description="Превышен лимит запросов"),
         },
     )
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         return super().list(request, *args, **kwargs)
 
     @extend_schema(
@@ -66,22 +71,28 @@ class SnapshotViewSet(ReadOnlyModelViewSet):
         responses={200: SnapshotSerializer, 404: OpenApiResponse(description="Снимки не найдены")},
     )
     @method_decorator(cache_page(60 * 60))
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         return super().retrieve(request, *args, **kwargs)
 
 
 class CoinViewSet(ReadOnlyModelViewSet):
     tags = ["Coins"]
     permission_classes = [IsAdminOrReadOnly]
-    queryset = Coin.objects.prefetch_related("prices").all()
+    queryset = Coin.objects.prefetch_related("prices").order_by("id")
     serializer_class = CoinSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = CoinFilter
     search_fields = ["symbol", "name"]
 
     @action(detail=True, methods=["get"], pagination_class=CoinPricePagination)
-    def history(self, request, pk=None):
+    def history(self, request: Request, pk: str, version: str | None = None) -> Response:
         prices = CoinPrice.objects.filter(coin_id=pk)
+        page = self.paginate_queryset(prices)
+
+        if page is not None:
+            serializer = CoinPriceAnalyticSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
         serializer = CoinPriceAnalyticSerializer(prices, many=True)
         return Response(serializer.data)
 
@@ -92,12 +103,15 @@ class WatchlistViewSet(ModelViewSet):
         IsAuthenticated,
     ]
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type[BaseSerializer]:
         if self.action in ("create", "delete_watchlist"):
             return WatchlistInputSerializer
         return WatchlistOutputSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[WatchlistItem]:
+        if getattr(self, "swagger_fake_view", False):
+            return WatchlistItem.objects.none()
+
         return WatchlistItem.objects.filter(user=self.request.user).select_related("coin")
 
     @extend_schema(
@@ -111,7 +125,7 @@ class WatchlistViewSet(ModelViewSet):
             429: OpenApiResponse(description="Превышен лимит запросов"),
         },
     )
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
@@ -129,20 +143,32 @@ class WatchlistViewSet(ModelViewSet):
         },
     )
     @action(detail=False, methods=["delete"], url_path="remove")
-    def delete_watchlist(self, request):
+    def delete_watchlist(self, request: Request, version: str | None = None) -> Response:
         symbol = request.data.get("symbol")
         result = remove_from_watchlist(request.user, symbol)
-        return Response(result)
+
+        if result.get("valid") is False:
+            return Response(result, status=404)
+
+        return Response(result, status=200)
 
 
 class MarketStatusView(APIView):
     tags = ["Analytics"]
 
-    def get(self, request, version=None):
+    @extend_schema(
+        summary="Получить состояние рынка",
+        responses={
+            200: OpenApiResponse(description="Статистика рынка"),
+            404: OpenApiResponse(description="Снимки не найдены"),
+            429: OpenApiResponse(description="Превышен лимит запросов"),
+        },
+    )
+    def get(self, request: Request, version: str | None = None) -> Response:
         data = get_cached_market_stats()
 
         if isinstance(data, dict) and "error" in data:
-            return Response(data, status=404)
+            raise NotFound("Снимков нет")
 
         return Response(data)
 
@@ -150,11 +176,19 @@ class MarketStatusView(APIView):
 class TopMoversView(APIView):
     tags = ["Analytics"]
 
-    def get(self, request, version=None):
+    @extend_schema(
+        summary="Получить лидеров роста и падения",
+        responses={
+            200: CoinPriceAnalyticSerializer(many=True),
+            404: OpenApiResponse(description="Снимки не найдены"),
+            429: OpenApiResponse(description="Превышен лимит запросов"),
+        },
+    )
+    def get(self, request: Request, version: str | None = None) -> Response:
         data = get_cached_top_movers()
 
         if isinstance(data, dict) and "error" in data:
-            return Response(data, status=404)
+            raise NotFound("Снимков нет")
 
         return Response(data)
 
@@ -162,11 +196,19 @@ class TopMoversView(APIView):
 class VolumeTopView(APIView):
     tags = ["Analytics"]
 
-    def get(self, request, version=None):
+    @extend_schema(
+        summary="Получить лидеров по объёму",
+        responses={
+            200: CoinPriceAnalyticSerializer(many=True),
+            404: OpenApiResponse(description="Снимки не найдены"),
+            429: OpenApiResponse(description="Превышен лимит запросов"),
+        },
+    )
+    def get(self, request: Request, version: str | None = None) -> Response:
         data = get_cached_top_volume()
 
         if isinstance(data, dict) and "error" in data:
-            return Response(data, status=404)
+            raise NotFound("Снимков нет")
 
         return Response(data)
 
@@ -184,11 +226,16 @@ class StartSnapshotTaskView(APIView):
             429: OpenApiResponse(description="Превышен лимит запросов"),
         },
     )
-    def post(self, request, version=None):
+    def post(self, request: Request, version: str | None = None) -> Response:
         provider = request.data.get("provider", "coingecko")
         limit = request.data.get("limit", 3)
+
         task = fetch_snapshot_task.delay(provider, limit)
-        return Response({"task_id": task.id}, status=202)
+
+        return Response(
+            {"task_id": task.id},
+            status=202,
+        )
 
 
 class TaskStatusView(APIView):
@@ -201,6 +248,12 @@ class TaskStatusView(APIView):
             404: OpenApiResponse(description="Непредвиденная ошибка"),
         },
     )
-    def get(self, request, task_id, version=None):
-        result = AsyncResult(task_id)
-        return Response({"status": result.status, "result": result.result})
+    def get(self, request: Request, task_id: str, version: str | None = None) -> Response:
+        result = fetch_snapshot_task.AsyncResult(task_id)
+
+        return Response(
+            {
+                "status": result.status,
+                "result": str(result.result) if result.failed() else result.result,
+            }
+        )
