@@ -161,9 +161,9 @@ REST_FRAMEWORK = {
         # "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_THROTTLE_CLASSES": [
-    "analyzer.throttling.CustomAnonRateThrottle",
-    "analyzer.throttling.CustomUserRateThrottle",
-    "analyzer.throttling.AdminRateThrottle",
+        "analyzer.throttling.CustomAnonRateThrottle",
+        "analyzer.throttling.CustomUserRateThrottle",
+        "analyzer.throttling.AdminRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "5/min",
@@ -227,12 +227,8 @@ STORAGES = {
 
 EXCHANGE_PROVIDER = os.getenv("EXCHANGE_PROVIDER", "coingecko")
 
-
 CELERY_BROKER_URL = "redis://localhost:6379"
 CELERY_RESULT_BACKEND = "redis://localhost:6379"
-
-CELERY_TASK_DEFAULT_RETRY_DELAY = 60
-CELERY_TASK_MAX_RETRIES = 3
 
 CELERY_BEAT_SCHEDULE = {
     "fetch-snapshot-every-5-minutes": {
