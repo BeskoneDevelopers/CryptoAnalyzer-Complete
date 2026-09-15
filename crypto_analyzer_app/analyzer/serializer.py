@@ -135,14 +135,20 @@ class PortfolioSerializer(serializers.ModelSerializer):
     def get_symbol(self, obj):
         return obj.coin.symbol.upper()
 
-    def get_current_price(self, obj):
-        price = self.context["prices"]
-        return price[obj.coin_id]
+    def _get_current_price(self, obj: Portfolio) -> Decimal | None:
+        prices = self.context.get("prices", {})
+        return prices.get(obj.coin_id)
 
-    def get_current_value(self, obj):
-        price = self.context["prices"]
+    def get_current_price(self, obj: Portfolio) -> Decimal | None:
+        return self._get_current_price(obj)
 
-        return obj.amount * price[obj.coin_id]
+    def get_current_value(self, obj: Portfolio) -> Decimal | None:
+        price = self._get_current_price(obj)
+
+        if price is None:
+            return None
+
+        return obj.amount * price
 
 
 class PortfolioBuySerializer(serializers.Serializer):

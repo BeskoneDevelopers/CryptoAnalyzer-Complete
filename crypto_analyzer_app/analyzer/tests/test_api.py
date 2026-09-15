@@ -746,6 +746,33 @@ class PortfolioAPITest(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["code"], "validation_error")
 
+    def test_portfolio_without_current_price(self):
+        coin = Coin.objects.create(
+            name="Ethereum",
+            symbol="ETH",
+        )
+
+        Portfolio.objects.create(
+            user=self.user,
+            coin=coin,
+            amount=Decimal("2"),
+            buy_price=Decimal("3000"),
+        )
+
+        response = self.client.get(
+            "/api/v1/portfolio/",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        positions = response.json()["results"]
+
+        ethereum = next(position for position in positions if position["symbol"] == "ETH")
+
+        self.assertIsNone(ethereum["current_price"])
+        self.assertIsNone(ethereum["current_value"])
+
 
 class AnyTests(TestCase):
     def test_custom_exception_handler_handles_django_http404(self):
