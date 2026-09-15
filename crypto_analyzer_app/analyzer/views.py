@@ -1,5 +1,4 @@
 from celery.result import AsyncResult
-from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
@@ -23,7 +22,12 @@ from .serializer import (
     WatchlistInputSerializer,
     WatchlistOutputSerializer,
 )
-from .services import get_market_stats, get_top_movers, get_top_volume, remove_from_watchlist
+from .services import (
+    get_cached_market_stats,
+    get_cached_top_movers,
+    get_cached_top_volume,
+    remove_from_watchlist,
+)
 from .tasks import fetch_snapshot_task
 
 
@@ -135,52 +139,36 @@ class MarketStatusView(APIView):
     tags = ["Analytics"]
 
     def get(self, request, version=None):
-        cached_status = cache.get("market_stats")
-        if cached_status is not None:
-            return Response(cached_status)
+        data = get_cached_market_stats()
 
-        stats = get_market_stats()
-        if "error" in stats:
-            return Response(stats, status=404)
+        if isinstance(data, dict) and "error" in data:
+            return Response(data, status=404)
 
-        cache.set("market_stats", stats, 4200)
-        return Response(stats)
+        return Response(data)
 
 
 class TopMoversView(APIView):
     tags = ["Analytics"]
 
     def get(self, request, version=None):
-        cached_status = cache.get("top_movers")
-        if cached_status is not None:
-            return Response(cached_status)
-        move = get_top_movers()
+        data = get_cached_top_movers()
 
-        if isinstance(move, dict) and "error" in move:
-            return Response(move, status=404)
-        serializer = CoinPriceAnalyticSerializer(move, many=True)
-        cache.set("top_movers", serializer.data, 4200)
-        return Response(serializer.data)
+        if isinstance(data, dict) and "error" in data:
+            return Response(data, status=404)
+
+        return Response(data)
 
 
 class VolumeTopView(APIView):
     tags = ["Analytics"]
 
     def get(self, request, version=None):
-        cached_status = cache.get("volume_leaders")
+        data = get_cached_top_volume()
 
-        if cached_status is not None:
-            return Response(cached_status)
+        if isinstance(data, dict) and "error" in data:
+            return Response(data, status=404)
 
-        toper = get_top_volume()
-
-        if isinstance(toper, dict) and "error" in toper:
-            return Response(toper, status=404)
-
-        serializer = CoinPriceAnalyticSerializer(toper, many=True)
-        cache.set("volume_leaders", serializer.data, 4200)
-
-        return Response(serializer.data)
+        return Response(data)
 
 
 class StartSnapshotTaskView(APIView):

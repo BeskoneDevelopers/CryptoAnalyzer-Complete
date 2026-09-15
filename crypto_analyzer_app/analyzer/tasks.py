@@ -3,14 +3,11 @@ from datetime import timedelta
 import requests
 from celery import shared_task
 from django.conf import settings
-from django.core.cache import cache
 from django.db.models import Sum
 from django.utils import timezone
 
 from analyzer.models import Coin, CoinPrice, Snapshot
-
-from .serializer import CoinPriceAnalyticSerializer
-from .services import get_market_stats, get_top_movers, get_top_volume
+from analyzer.services import refresh_analytics_cache
 
 
 def _fetch_data(provider, limit):
@@ -59,7 +56,7 @@ def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
 
     recent = Snapshot.objects.filter(provider=provider, created_at__gte=timezone.now() - timedelta(minutes=5)).first()
     if recent:
-        return {"snapshot_id": recent.id, "already_exists": True}
+        return {"snapshot_id": recent.pk, "already_exists": True}
 
     try:
         coins_data = _fetch_data(provider, limit)
@@ -85,15 +82,6 @@ def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
     snapshot.total_market_cap = total_market_cap
     snapshot.save()
 
-    market_stats = get_market_stats()
-    top_movers = get_top_movers()
-    top_volume = get_top_volume()
+    refresh_analytics_cache()
 
-    mover_serializer = CoinPriceAnalyticSerializer(top_movers, many=True)
-    value_serializer = CoinPriceAnalyticSerializer(top_volume, many=True)
-
-    cache.set("market_stats", market_stats, 4200)
-    cache.set("top_movers", mover_serializer.data, 4200)
-    cache.set("volume_leaders", value_serializer.data, 4200)
-
-    return {"snapshot_id": snapshot.id, "total_coins": snapshot.total_coins}
+    return {"snapshot_id": snapshot.pk, "total_coins": snapshot.total_coins}
