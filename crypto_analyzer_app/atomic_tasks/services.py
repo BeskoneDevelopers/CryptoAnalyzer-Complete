@@ -1,7 +1,7 @@
 from decimal import Decimal
 
-from analyzer.models import Balance, Coin, CoinPrice, Portfolio, Snapshot
-from analyzer.services import get_latest_price
+from analyzer.models import Balance, Coin, Portfolio
+from analyzer.services import get_latest_price, get_latest_prices
 from django.contrib.auth.models import User
 from django.db import transaction
 
@@ -71,27 +71,14 @@ class PortfolioService:
 
     @staticmethod
     def get_summary(user: User):
-
         try:
             balance = Balance.objects.get(user=user)
         except Balance.DoesNotExist:
             raise ValueError("Баланс пользователя не найден") from None
 
-        latest_snapshot = Snapshot.objects.order_by("-created_at").first()
-        if latest_snapshot is None:
-            raise ValueError("Снимок рынка не найден")
-
         positions = Portfolio.objects.filter(user=user)
-
         coin_ids = positions.values_list("coin_id", flat=True)
-
-        prices = CoinPrice.objects.filter(
-            snapshot=latest_snapshot,
-            coin_id__in=coin_ids,
-        )
-
-        prices_map = {price.coin_id: price.price for price in prices}
-
+        prices_map = get_latest_prices(coin_ids)
         portfolio_value = Decimal("0")
 
         for position in positions:

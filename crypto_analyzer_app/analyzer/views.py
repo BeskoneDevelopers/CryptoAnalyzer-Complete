@@ -37,6 +37,7 @@ from .services import (
     get_cached_market_stats,
     get_cached_top_movers,
     get_cached_top_volume,
+    get_latest_prices,
     remove_from_watchlist,
 )
 from .tasks import fetch_snapshot_task
@@ -278,20 +279,13 @@ class PortfolioListView(ListAPIView):
         context = super().get_serializer_context()
 
         portfolio = self.get_queryset()
-
-        latest_snapshot = Snapshot.objects.order_by("-created_at").first()
-
-        if latest_snapshot is None:
-            raise NotFound("Снимок рынка не найден")
-
         coin_ids = portfolio.values_list("coin_id", flat=True)
 
-        prices = CoinPrice.objects.filter(
-            snapshot=latest_snapshot,
-            coin_id__in=coin_ids,
-        )
+        try:
+            context["prices"] = get_latest_prices(coin_ids)
+        except ValueError as exc:
+            raise NotFound(str(exc)) from None
 
-        context["prices"] = {price.coin_id: price.price for price in prices}
         return context
 
 
