@@ -97,11 +97,11 @@ WSGI_APPLICATION = "crypto_analyzer_app.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "crypto_analyzer_db",
-        "USER": "postgres",
-        "PASSWORD": "postgres",
-        "HOST": "localhost",
-        "PORT": "5432",
+        "NAME": os.getenv("DB_NAME", "crypto_analyzer_db"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
+        "HOST": os.getenv("DB_HOST", "localhost"),
+        "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
 
@@ -161,9 +161,9 @@ REST_FRAMEWORK = {
         # "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_THROTTLE_CLASSES": [
-    "analyzer.throttling.CustomAnonRateThrottle",
-    "analyzer.throttling.CustomUserRateThrottle",
-    "analyzer.throttling.AdminRateThrottle",
+        "analyzer.throttling.CustomAnonRateThrottle",
+        "analyzer.throttling.CustomUserRateThrottle",
+        "analyzer.throttling.AdminRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "5/min",
@@ -227,12 +227,9 @@ STORAGES = {
 
 EXCHANGE_PROVIDER = os.getenv("EXCHANGE_PROVIDER", "coingecko")
 
-
-CELERY_BROKER_URL = "redis://localhost:6379"
-CELERY_RESULT_BACKEND = "redis://localhost:6379"
-
-CELERY_TASK_DEFAULT_RETRY_DELAY = 60
-CELERY_TASK_MAX_RETRIES = 3
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+CELERY_BROKER_URL = f"redis://{REDIS_HOST}:6379"
+CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:6379"
 
 CELERY_BEAT_SCHEDULE = {
     "fetch-snapshot-every-5-minutes": {
