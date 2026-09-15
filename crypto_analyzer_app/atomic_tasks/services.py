@@ -1,15 +1,14 @@
 from decimal import Decimal
 
-from django.contrib.auth.base_user import AbstractBaseUser
-from django.db import transaction
-
 from analyzer.models import Balance, Coin, CoinPrice, Portfolio, Snapshot
 from analyzer.services import get_latest_price
+from django.contrib.auth.models import User
+from django.db import transaction
 
 
 class PortfolioService:
     @staticmethod
-    def buy(user: AbstractBaseUser, coin: Coin, amount: Decimal):
+    def buy(user: User, coin: Coin, amount: Decimal):
         if amount <= 0:
             raise ValueError("Неверно указано количество")
         with transaction.atomic():
@@ -35,7 +34,7 @@ class PortfolioService:
         return {"successful": "Операция прошла успешно"}
 
     @staticmethod
-    def sell(user: AbstractBaseUser, coin: Coin, amount: Decimal):
+    def sell(user: User, coin: Coin, amount: Decimal):
         if amount <= 0:
             raise ValueError("Неверно указано количество")
         with transaction.atomic():
@@ -64,7 +63,7 @@ class PortfolioService:
         return {"successful": "Операция прошла успешно"}
 
     @staticmethod
-    def get_summary(user):
+    def get_summary(user: User):
         balance = Balance.objects.get(user=user)
 
         latest_snapshot = Snapshot.objects.order_by("-created_at").first()

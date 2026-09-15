@@ -1,11 +1,20 @@
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import reset_queries
+from django.http import Http404
 from django.test import TestCase
+from rest_framework.exceptions import (
+    MethodNotAllowed,
+    NotAuthenticated,
+    PermissionDenied,
+    Throttled,
+    ValidationError,
+)
 
+from analyzer.exceptions import custom_exception_handler
 from analyzer.models import Balance, Coin, CoinPrice, Portfolio, Snapshot, WatchlistItem
 
 User = get_user_model()
@@ -27,16 +36,31 @@ class WatchlistAPI(TestCase):
         response = self.client.get("/api/v1/watchlist/", HTTP_AUTHORIZATION=self.auth_header)
         self.assertEqual(response.status_code, 200)
 
-    @patch("analyzer.serializer.validate_symbol")
+    @patch("analyzer.serializer.service_validate_symbol")
     def test_add_to_watchlist(self, mock_validate):
-        mock_validate.return_value = {"valid": True, "name": "Bitcoin"}
+        mock_validate.return_value = {
+            "valid": True,
+            "name": "Bitcoin",
+        }
 
         response = self.client.post(
-            "/api/v1/watchlist/", {"symbol": "btc"}, content_type="application/json", HTTP_AUTHORIZATION=self.auth_header
+            "/api/v1/watchlist/",
+            {"symbol": "btc"},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
         )
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["coin"], "Bitcoin")
+        self.assertEqual(
+            WatchlistItem.objects.filter(
+                user=self.user,
+                coin__symbol="btc",
+            ).count(),
+            1,
+        )
+
+        mock_validate.assert_called_once_with("btc")
 
     def test_watchlist_query_count(self):
         coin_one = Coin.objects.create(name="Bobrcoin", symbol="bobr")
@@ -45,11 +69,61 @@ class WatchlistAPI(TestCase):
         WatchlistItem.objects.create(user=self.user, coin=coin_two)
 
         reset_queries()
-
         with self.assertNumQueries(3):
             response = self.client.get("/api/v1/watchlist/", HTTP_AUTHORIZATION=self.auth_header)
 
         self.assertEqual(response.status_code, 200)
+
+    @patch("analyzer.serializer.service_validate_symbol")
+    def test_user_isolation(self, mock_validate):
+        mock_validate.return_value = {
+            "valid": True,
+            "name": "Bitcoin",
+        }
+
+        response = self.client.post(
+            "/api/v1/watchlist/",
+            {"symbol": "btc"},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        User.objects.create_user(
+            username="tester2",
+            password="testpass123",
+        )
+
+        response = self.client.post(
+            "/api/token/",
+            {
+                "username": "tester2",
+                "password": "testpass123",
+            },
+        )
+
+        token_b = response.json()["access"]
+        auth_header_b = f"Bearer {token_b}"
+
+        response = self.client.get(
+            "/api/v1/watchlist/",
+            HTTP_AUTHORIZATION=auth_header_b,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["count"], 0)
+        self.assertEqual(response.json()["results"], [])
+
+    def test_remove_nonexistent_watchlist_item(self):
+        response = self.client.delete(
+            "/api/v1/watchlist/remove/",
+            {"symbol": "btc"},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 404)
 
 
 class AnalyticsAPITest(TestCase):
@@ -59,8 +133,13 @@ class AnalyticsAPITest(TestCase):
 
     def test_market_stats_structure(self):
         snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=150001.00)
-        coin = Coin.objects.create(name="Babkacoin", symbol="bkc")
-        CoinPrice.objects.create(coin=coin, snapshot=snapshot, price=50001, volume_24h=1000004, change_24h=5.5)
+
+        coin1 = Coin.objects.create(name="Babkacoin", symbol="bkc")
+        coin2 = Coin.objects.create(name="MotoMoto", symbol="mot")
+
+        CoinPrice.objects.create(coin=coin1, snapshot=snapshot, price=50001, volume_24h=1000004, change_24h=5.5)
+        CoinPrice.objects.create(coin=coin2, snapshot=snapshot, price=102312, volume_24h=984322, change_24h=4.1)
+
         response = self.client.get("/api/v1/analytics/market-stats/")
         self.assertEqual(response.status_code, 200)
 
@@ -68,13 +147,15 @@ class AnalyticsAPITest(TestCase):
         self.assertEqual(data["snapshot_id"], snapshot.id)
         self.assertEqual(data["provider"], "test")
         self.assertEqual(data["min_price"], 50001.0)
-        self.assertEqual(data["max_price"], 50001.0)
+        self.assertEqual(data["max_price"], 102312.0)
         self.assertEqual(data["total_market_cap"], 150001.0)
+        self.assertEqual(data["avg_price"], 76156.5)
 
     def test_market_stats_empty(self):
         response = self.client.get("/api/v1/analytics/market-stats/")
         self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.json()["error"], "Снимков нет!")
+        self.assertEqual(response.json()["code"], "not_found")
+        self.assertEqual(response.json()["error"], "Запрашиваемый ресурс не найден")
 
     def test_top_movers(self):
         snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=100)
@@ -94,8 +175,30 @@ class AnalyticsAPITest(TestCase):
 
     def test_volume_toper_empty(self):
         response = self.client.get("/api/v1/analytics/volume-leaders/")
+
         self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.json()["error"], "Снимков нет!")
+        self.assertEqual(response.json()["code"], "not_found")
+
+    def test_volume_leaders(self):
+        snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=100)
+        ntc = Coin.objects.create(name="Nitcoin", symbol="ntc")
+        pep = Coin.objects.create(name="Pepecoin", symbol="pep")
+
+        CoinPrice.objects.create(coin=ntc, snapshot=snapshot, price=200, volume_24h=100, change_24h=5.0)
+        CoinPrice.objects.create(coin=pep, snapshot=snapshot, price=300, volume_24h=500, change_24h=10.0)
+
+        response = self.client.get("/api/v1/analytics/volume-leaders/")
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]["coin_symbol"], "pep")
+        self.assertEqual(data[1]["coin_symbol"], "ntc")
+
+    def test_top_movers_empty_snapshot(self):
+        response = self.client.get("/api/v1/analytics/top-movers/")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["code"], "not_found")
 
     def test_coins_filter_price_range(self):
         snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=100000)
@@ -125,28 +228,75 @@ class AnalyticsAPITest(TestCase):
             self.assertEqual(len(results["results"]), 1)
             self.assertEqual(results["results"][0]["symbol"], "pep")
 
+    def test_coin_history_cursor_pagination(self):
+        coin = Coin.objects.create(
+            name="Bitcoin",
+            symbol="btc",
+        )
+
+        for index in range(12):
+            snapshot = Snapshot.objects.create(
+                provider=f"test-{index}",
+                total_coins=1,
+                total_market_cap=1000 + index,
+            )
+            CoinPrice.objects.create(
+                coin=coin,
+                snapshot=snapshot,
+                price=100 + index,
+                volume_24h=1000 + index,
+                change_24h=index,
+            )
+
+        response = self.client.get(f"/api/v1/coins/{coin.pk}/history/")
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertIn("results", data)
+        self.assertIn("next", data)
+        self.assertEqual(len(data["results"]), 10)
+
+        self.assertIsNotNone(data["next"])
+
 
 class CeleryAPITest(TestCase):
     def setUp(self):
-        self.admin = User.objects.create_superuser(username="admin", password="123321")
+        self.admin = User.objects.create_superuser(
+            username="admin",
+            password="123321",
+        )
         self.client.force_login(self.admin)
 
-    def test_start_task_snapshot(self):
-        url = "/api/v1/snapshots/start/"
-        response = self.client.post(url, data={"provider": "test", "limit": 2}, content_type="application/json")
+    @patch("analyzer.views.fetch_snapshot_task.delay")
+    def test_start_task_snapshot(self, mock_delay):
+        mock_task = MagicMock()
+        mock_task.id = "test-task-id"
+        mock_delay.return_value = mock_task
+
+        response = self.client.post(
+            "/api/v1/snapshots/start/",
+            data={"provider": "test", "limit": 2},
+            content_type="application/json",
+        )
+
         self.assertEqual(response.status_code, 202)
-        result = response.json()
-        self.assertIn("task_id", result)
+        self.assertEqual(response.json()["task_id"], "test-task-id")
+        mock_delay.assert_called_once_with("test", 2)
 
-    def test_task_status(self):
-        url = "/api/v1/snapshots/start/"
-        response = self.client.post(url, data={"provider": "test", "limit": 2}, content_type="application/json")
-        task_id = response.json()["task_id"]
+    @patch("analyzer.views.fetch_snapshot_task.AsyncResult")
+    def test_task_status(self, mock_async_result):
+        mock_result = MagicMock()
+        mock_result.status = "PENDING"
+        mock_result.result = None
+        mock_result.failed.return_value = False
+        mock_async_result.return_value = mock_result
 
-        status_url = f"/api/v1/snapshots/tasks/{task_id}/"
-        status_response = self.client.get(status_url)
-        self.assertEqual(status_response.status_code, 200)
-        self.assertIn("status", status_response.json())
+        response = self.client.get("/api/v1/snapshots/tasks/123/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "PENDING")
 
 
 class ThrottleTests(TestCase):
@@ -159,24 +309,55 @@ class ThrottleTests(TestCase):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200, f"Request {i + 1} should pass")
 
-        response = self.client.get(url)  # 6-й запрос
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 429, "6th anonymous request should be throttled")
 
     def test_user_throttle_100_per_minute(self):
         user = User.objects.create_user(username="throttleuser", password="123")
-        self.client.force_login(user)  # Session auth
+        self.client.force_login(user)
 
         url = "/api/v1/coins/"
         for i in range(100):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200, f"Request {i + 1} should pass")
+        response = self.client.get(url)
+        self.assertEqual(
+            response.status_code,
+            429,
+            "101st authenticated request should be throttled",
+        )
 
-        response = self.client.get(url)  # 101-й
-        self.assertEqual(response.status_code, 429)
+    def test_admin_throttle_1000_per_minute(self):
+        admin = User.objects.create_superuser(
+            username="adminthrottle",
+            password="123",
+            email="admin@example.com",
+        )
+        self.client.force_login(admin)
+
+        url = "/api/v1/coins/"
+
+        for i in range(1000):
+            response = self.client.get(url)
+            self.assertEqual(
+                response.status_code,
+                200,
+                f"Request {i + 1} should pass",
+            )
+
+        response = self.client.get(url)
+
+        self.assertEqual(
+            response.status_code,
+            429,
+            "1001st superuser request should be throttled",
+        )
 
 
 class PortfolioAPITest(TestCase):
     def setUp(self):
+        cache.clear()
+
         self.user = User.objects.create_user(
             username="portfolio_user",
             password="testpass123",
@@ -534,3 +715,66 @@ class PortfolioAPITest(TestCase):
             another_balance.amount,
             Decimal("0"),
         )
+
+
+class AnyTests(TestCase):
+    def test_custom_exception_handler_handles_django_http404(self):
+        response = custom_exception_handler(Http404(), {})
+
+        assert response.status_code == 404
+        assert response.data["code"] == "not_found"
+        assert response.data["error"] == "Запрашиваемый ресурс не найден"
+
+    def test_custom_exception_handler_returns_json_for_unknown_error(self):
+        response = custom_exception_handler(RuntimeError("boom"), {})
+
+        assert response.status_code == 500
+        assert response.data["code"] == "server_error"
+        assert response.data["error"] == "Ошибка сервера. Попробуйте позже"
+
+    def test_custom_exception_handler_uses_request_method_for_method_not_allowed(self):
+        request = type("Request", (), {"method": "POST"})()
+
+        response = custom_exception_handler(
+            MethodNotAllowed("POST"),
+            {"request": request},
+        )
+
+        assert response.status_code == 405
+        assert response.data["code"] == "method_not_allowed"
+        assert response.data["error"] == "Метод POST не разрешён"
+
+    def test_custom_exception_handler_validation_error(self):
+        response = custom_exception_handler(
+            ValidationError({"symbol": ["Это поле обязательно."]}),
+            {},
+        )
+
+        assert response.status_code == 400
+        assert response.data["code"] == "validation_error"
+        assert response.data["error"] == "Ошибка валидации данных"
+
+    def test_custom_exception_handler_not_authenticated(self):
+        response = custom_exception_handler(NotAuthenticated(), {})
+
+        assert response.status_code == 401
+        assert response.data["code"] == "authentication_failed"
+        assert response.data["error"] == "Требуется авторизация"
+
+    def test_custom_exception_handler_permission_denied(self):
+        response = custom_exception_handler(PermissionDenied(), {})
+
+        assert response.status_code == 403
+        assert response.data["code"] == "permission_denied"
+        assert response.data["error"] == "У вас недостаточно прав"
+
+    def test_custom_exception_handler_throttled_preserves_retry_after(self):
+        response = custom_exception_handler(
+            Throttled(wait=60),
+            {},
+        )
+
+        assert response.status_code == 429
+        assert response.data["code"] == "throttled"
+        assert response.data["error"] == "Превышен лимит запросов"
+        assert response["Retry-After"] == "60"

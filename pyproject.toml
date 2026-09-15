@@ -1,0 +1,16 @@
+[tool.mypy]
+explicit_package_bases = true
+ignore_missing_imports = true
+plugins = ["mypy_django_plugin.main"]
+mypy_path = "crypto_analyzer_app"
+
+[tool.django-stubs]
+django_settings_module = "crypto_analyzer_app.settings"
+
+[tool.ruff]
+line-length = 135
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+per-file-ignores = { "**/migrations/**" = ["E501"] }

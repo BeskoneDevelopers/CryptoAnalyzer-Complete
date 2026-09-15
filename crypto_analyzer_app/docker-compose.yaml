@@ -1,69 +1,74 @@
+x-app-environment: &app-environment
+  DB_NAME: ${POSTGRES_DB:-crypto_analyzer_db}
+  DB_USER: ${POSTGRES_USER:-postgres}
+  DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+  DB_HOST: db
+  DB_PORT: "5432"
+  REDIS_HOST: redis
+
 services:
   db:
     image: postgres:17
     environment:
-      POSTGRES_DB: crypto_analyzer_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-crypto_analyzer_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   redis:
     image: redis:8
 
   web:
     build: .
-    command: [
-    "gunicorn",
-    "crypto_analyzer_app.wsgi:application",
-    "--workers",
-    "2",
-    "--bind",
-    "0.0.0.0:8000"
-    ]
-    environment:
-      DB_HOST: db
-      REDIS_HOST: redis
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn crypto_analyzer_app.wsgi:application --bind 0.0.0.0:8000"
+    environment: *app-environment
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
-      - .:/app
-
+      - staticfiles:/app/staticfiles
 
   celery_worker:
-      build: .
-      command: celery -A crypto_analyzer_app worker -l info
-      environment:
-        DB_HOST: db
-        REDIS_HOST: redis
-      depends_on:
-        - db
-        - redis
-      volumes:
-        - .:/app
+    build: .
+    command: celery -A crypto_analyzer_app worker -l info
+    environment: *app-environment
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   celery_beat:
-      build: .
-      command: celery -A crypto_analyzer_app beat -l info
-      environment:
-        DB_HOST: db
-        REDIS_HOST: redis
-      depends_on:
-        - db
-        - redis
-      volumes:
-        - .:/app
+    build: .
+    command: celery -A crypto_analyzer_app beat -l info
+    environment: *app-environment
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   nginx:
-      image: nginx:1.30
-      ports:
-        - "80:80"
-      volumes:
-        - ./nginx.conf:/etc/nginx/nginx.conf
-        - staticfiles:/app/staticfiles
-      depends_on:
-        - web
+    image: nginx:1.30
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - staticfiles:/app/staticfiles
+    depends_on:
+      - web
 
 volumes:
   postgres_data:

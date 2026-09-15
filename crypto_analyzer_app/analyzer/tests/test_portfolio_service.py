@@ -2,12 +2,12 @@ from decimal import Decimal
 from threading import Barrier, Thread
 from unittest.mock import patch
 
+from atomic_tasks.services import PortfolioService
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections
 from django.test import TestCase, TransactionTestCase
 
 from analyzer.models import Balance, Coin, Portfolio
-from atomic_tasks.services import PortfolioService
 
 User = get_user_model()
 
