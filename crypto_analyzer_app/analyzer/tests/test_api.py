@@ -716,6 +716,36 @@ class PortfolioAPITest(TestCase):
             Decimal("0"),
         )
 
+    def test_buy_without_balance(self):
+        self.balance.delete()
+
+        response = self.client.post(
+            "/api/v1/portfolio/buy/",
+            {
+                "coin": self.coin.id,
+                "amount": "1",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "validation_error")
+
+    def test_sell_without_balance(self):
+        self.balance.delete()
+
+        response = self.client.post(
+            "/api/v1/portfolio/sell/",
+            {
+                "coin": self.coin.id,
+                "amount": "1",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "validation_error")
+
 
 class AnyTests(TestCase):
     def test_custom_exception_handler_handles_django_http404(self):

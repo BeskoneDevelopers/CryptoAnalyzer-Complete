@@ -12,7 +12,11 @@ class PortfolioService:
         if amount <= 0:
             raise ValueError("Неверно указано количество")
         with transaction.atomic():
-            balance = Balance.objects.select_for_update().get(user=user)
+            try:
+                balance = Balance.objects.select_for_update().get(user=user)
+            except Balance.DoesNotExist:
+                raise ValueError("Баланс пользователя не найден") from None
+
             price = get_latest_price(coin)
             cost = amount * price
             new_balance = balance.amount - cost
@@ -38,7 +42,10 @@ class PortfolioService:
         if amount <= 0:
             raise ValueError("Неверно указано количество")
         with transaction.atomic():
-            balance = Balance.objects.select_for_update().get(user=user)
+            try:
+                balance = Balance.objects.select_for_update().get(user=user)
+            except Balance.DoesNotExist:
+                raise ValueError("Баланс пользователя не найден") from None
 
             price = get_latest_price(coin)
             cost = amount * price
