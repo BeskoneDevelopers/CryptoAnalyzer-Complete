@@ -152,9 +152,9 @@ class CeleryTasksTests(TestCase):
     @patch("analyzer.tasks.refresh_analytics_cache")
     @patch("analyzer.tasks._fetch_data")
     def test_does_not_refresh_cache_for_existing_snapshot(
-            self,
-            mock_fetch,
-            mock_refresh_cache,
+        self,
+        mock_fetch,
+        mock_refresh_cache,
     ):
         from analyzer.tasks import fetch_snapshot_task
 
@@ -179,9 +179,9 @@ class CeleryTasksTests(TestCase):
     @patch("analyzer.tasks.refresh_analytics_cache")
     @patch("analyzer.tasks._fetch_data")
     def test_refresh_cache_after_snapshot_created(
-            self,
-            mock_fetch,
-            mock_refresh_cache,
+        self,
+        mock_fetch,
+        mock_refresh_cache,
     ):
         from analyzer.tasks import fetch_snapshot_task
 

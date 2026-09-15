@@ -1,4 +1,5 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from decimal import Decimal
 from typing import Any
 
 import requests
@@ -150,6 +151,36 @@ def get_top_movers(limit: int = 10) -> dict[str, str] | QuerySet[CoinPrice]:
 
 def get_top_volume(limit: int = 10) -> dict[str, str] | QuerySet[CoinPrice]:
     return get_toper("volume", limit)
+
+
+def get_latest_price(coin: Coin) -> Decimal:
+    latest_snapshot = Snapshot.objects.order_by("-created_at").first()
+
+    if latest_snapshot is None:
+        raise ValueError("Снимок рынка не найден")
+
+    try:
+        coin_price = CoinPrice.objects.get(
+            snapshot=latest_snapshot,
+            coin=coin,
+        )
+    except CoinPrice.DoesNotExist:
+        raise ValueError("Цена монеты не найдена") from None
+
+    return coin_price.price
+
+
+def get_latest_prices(coin_ids: Iterable[int]) -> dict[int, Decimal]:
+    latest_snapshot = Snapshot.objects.order_by("-created_at").first()
+
+    if latest_snapshot is None:
+        raise ValueError("Снимок рынка не найден")
+
+    prices = CoinPrice.objects.filter(
+        snapshot=latest_snapshot,
+        coin_id__in=coin_ids,
+    )
+    return {price.coin_id: price.price for price in prices}
 
 
 def get_or_set_cache(

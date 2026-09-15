@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Coin, CoinPrice, Snapshot
+from .models import Balance, Coin, CoinPrice, Portfolio, Snapshot
 
 
 @admin.register(Coin)
@@ -30,3 +30,15 @@ class SnapshotAdmin(admin.ModelAdmin):
 class CoinPriceAdmin(admin.ModelAdmin):
     list_display = ("coin", "snapshot", "price", "volume_24h", "change_24h")
     list_filter = ["snapshot", "coin"]
+
+
+@admin.register(Balance)
+class BalanceAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "amount")
+    list_filter = ["user"]
+
+
+@admin.register(Portfolio)
+class PortfolioAdmin(admin.ModelAdmin):
+    list_display = ("user", "coin", "amount", "buy_price")
+    list_filter = ["user"]
