@@ -25,10 +25,12 @@ class Snapshot(models.Model):
 
 class CoinPrice(models.Model):
     coin = models.ForeignKey(Coin, on_delete=models.CASCADE, related_name="prices")
-    snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE,  related_name="coin_prices")
-    price = models.DecimalField(max_digits=24, decimal_places=8)
-    volume_24h = models.DecimalField(max_digits=24, decimal_places=8)
-    change_24h = models.DecimalField(max_digits=24, decimal_places=8)
+
+    snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE, related_name="coin_prices")
+    price = models.DecimalField(max_digits=24, decimal_places=8, null=True, blank=True)
+    volume_24h = models.DecimalField(max_digits=24, decimal_places=8, null=True, blank=True)
+    change_24h = models.DecimalField(max_digits=24, decimal_places=8, null=True, blank=True)
+    market_cap = models.DecimalField(max_digits=24, decimal_places=8, null=True, blank=True)
 
     class Meta:
         verbose_name_plural = "coin_prices"

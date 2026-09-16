@@ -1,11 +1,21 @@
-﻿# Environment variables
+# Environment variables
 .env
+.env.local
+.env.*.local
+!.env.example
 
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*$py.class
+
+# Virtual environments
 .venv/
 venv/
+env/
+.env/
+ENV/
 
 # Django
 *.log
@@ -17,45 +27,32 @@ db.sqlite3
 .idea/
 .vscode/
 
-analyze_tests.py
-analysis_prompt.txt
-
-# Байт-код и кэш
-*.py[cod]
-*$py.class
-
-# Виртуальные окружения
-env/
-.env/
-ENV/
-
-# Переменные окружения
-.env.local
-.env.*.local
-!.env.example
-
-# Дистрибутивы и сборка
-dist/
-build/
-*.egg-info/
-*.egg
-
-# Тестирование и покрытие
+# Testing and coverage
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
 
-# Jupyter Notebook
-.ipynb_checkpoints/
-
-# mypy, ruff
+# Type checking / linting
 .mypy_cache/
 .ruff_cache/
+
+# Build
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Jupyter
+.ipynb_checkpoints/
 
 # PyInstaller
 *.spec
 
-# Crypto reports
+# Local analysis files
+analyze_tests.py
+analysis_prompt.txt
+
+# Reports
 crypto_report.csv
 crypto_report.json

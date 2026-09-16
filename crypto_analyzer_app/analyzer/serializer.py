@@ -5,13 +5,6 @@ from django_filters import rest_framework as filters
 
 from .services import validate_symbol as service_validate_symbol, add_to_watchlist
 
-# class CoinFilter(filters.FilterSet):
-#     symbol = filters.CharFilter(lookup_expr="iexact")
-#
-#     class Meta:
-#         model = Coin
-#         fields = ["symbol"]
-
 class CoinFilter(filters.FilterSet):
     symbol = filters.CharFilter(lookup_expr="iexact")
     min_price = filters.NumberFilter(
@@ -62,6 +55,7 @@ class CoinPriceSerializer(serializers.ModelSerializer):
             "price",
             "volume_24h",
             "change_24h",
+            "market_cap",
         ]
 
 
@@ -87,7 +81,7 @@ class WatchlistInputSerializer(serializers.Serializer):
     symbol = serializers.CharField()
 
     def validate(self, attrs):
-        symbol = attrs["symbol"].strip().lower()
+        symbol = attrs["symbol"].strip().upper()
 
         result = service_validate_symbol(symbol)
 

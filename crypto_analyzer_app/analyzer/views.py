@@ -4,7 +4,7 @@ from  rest_framework.response import Response
 from django_filters import rest_framework as filters
 from rest_framework.views import APIView
 
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from rest_framework.permissions import IsAuthenticated
 
@@ -13,12 +13,12 @@ from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, Watchlis
 from .services import remove_from_watchlist, get_market_stats, get_top_movers, get_top_volume
 
 
-class SnapshotViewSet(ModelViewSet):
+class SnapshotViewSet(ReadOnlyModelViewSet):
     queryset = Snapshot.objects.prefetch_related("coin_prices").all()
     serializer_class = SnapshotSerializer
 
 
-class CoinViewSet(ModelViewSet):
+class CoinViewSet(ReadOnlyModelViewSet):
     queryset = (
         Coin.objects
         .prefetch_related("prices")
@@ -27,6 +27,7 @@ class CoinViewSet(ModelViewSet):
     serializer_class = CoinSerializer
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = CoinFilter
+
 
 class WatchlistViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated,]
@@ -52,6 +53,7 @@ class WatchlistViewSet(ModelViewSet):
     def delete_watchlist(self, request):
         symbol = request.data.get("symbol")
         result = remove_from_watchlist(request.user, symbol)
+
         if result.get("valid") is False:
             return Response(result, status=404)
 
