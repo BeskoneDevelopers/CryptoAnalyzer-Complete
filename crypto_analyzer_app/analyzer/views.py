@@ -68,13 +68,16 @@ class MarketStatusView(APIView):
         return Response(stats)
 
 
-class TopMoversView(APIView):
-    def get(self, request):
-        move = get_top_movers()
-        if isinstance(move, dict) and "error" in move:
-            return Response(move, status=404)
+class TopAnalyticsView(APIView):
+    source = None
 
-        serializer = CoinPriceAnalyticSerializer(move, many=True)
+    def get(self, request):
+        data = self.source()
+
+        if isinstance(data, dict) and "error" in data:
+            return Response(data, status=404)
+
+        serializer = CoinPriceAnalyticSerializer(data, many=True)
         return Response(serializer.data)
 
 
