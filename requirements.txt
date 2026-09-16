@@ -1,2 +1,4 @@
 requests
 rich
+typer
+python-dotenv
