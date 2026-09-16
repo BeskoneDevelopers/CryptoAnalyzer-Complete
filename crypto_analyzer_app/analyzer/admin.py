@@ -22,4 +22,3 @@ class SnapshotAdmin(admin.ModelAdmin):
 class CoinPriceAdmin(admin.ModelAdmin):
     list_display = ("coin", "snapshot", "price", "volume_24h", "change_24h", "market_cap")
     list_filter = ["snapshot", "coin"]
-
