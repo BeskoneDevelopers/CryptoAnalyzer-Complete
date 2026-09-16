@@ -1,18 +1,33 @@
-﻿# Python
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-.idea/
+
+# Virtual environment
 .venv/
 venv/
 
+# IDE
+.idea/
+.vscode/
+
+# Environment variables
 .env
+
+# Pytest
+.pytest_cache/
 
 # Coverage
 .coverage
 htmlcov/
 
+# Django
+*.log
+db.sqlite3
+
+# Databases
 *.db
 
+# Reports
 crypto_report.csv
 crypto_report.json

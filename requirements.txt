@@ -1,7 +1,0 @@
-requests
-rich
-typer
-python-dotenv
-pytest
-requests-mock
-pytest-cov
