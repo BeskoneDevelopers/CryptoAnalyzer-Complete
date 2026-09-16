@@ -20,6 +20,7 @@ class Snapshot(models.Model):
     total_market_cap: models.DecimalField = models.DecimalField(max_digits=24, decimal_places=8)
 
     class Meta:
+        indexes = [models.Index(fields=["created_at"], name="snapshot_created_at_idx")]
         verbose_name_plural = "snapshots"
 
     def __str__(self):
@@ -51,7 +52,6 @@ class WatchlistItem(models.Model):
         verbose_name_plural = "list_items"
         ordering = ["-added_at"]
         constraints = [models.UniqueConstraint(fields=["user", "coin"], name="unique_user_coin")]
-        indexes = [models.Index(fields=["user", "coin"])]
 
     def __str__(self):
         return f"{self.user}: {self.coin}"
