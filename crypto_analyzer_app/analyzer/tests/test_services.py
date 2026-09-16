@@ -4,9 +4,7 @@ from unittest.mock import patch, Mock
 from django.contrib.auth import get_user_model
 
 from analyzer.services import validate_symbol, add_to_watchlist, remove_from_watchlist
-from analyzer.models import Coin, WatchlistItem
-
-import requests
+from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
 
 User = get_user_model()
 
@@ -73,7 +71,30 @@ class WatchlistTests(TestCase):
         self.assertEqual(response.status_code, 405)
 
     def test_snapshot_endpoint_is_read_only(self):
-        response = self.client.post(
+        coin = Coin.objects.create(
+            name="Bitcoin",
+            symbol="BTC",
+        )
+
+        snapshot = Snapshot.objects.create(
+            provider="test",
+            total_coins=1,
+            total_market_cap="100.00",
+        )
+
+        CoinPrice.objects.create(
+            coin=coin,
+            snapshot=snapshot,
+            price="50.00",
+            volume_24h="1000.00",
+            change_24h="1.50",
+            market_cap="5000.00",
+        )
+
+        get_response = self.client.get("/api/snapshots/")
+        self.assertEqual(get_response.status_code, 200)
+
+        post_response = self.client.post(
             "/api/snapshots/",
             {
                 "provider": "test",
@@ -83,4 +104,4 @@ class WatchlistTests(TestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(post_response.status_code, 405)
