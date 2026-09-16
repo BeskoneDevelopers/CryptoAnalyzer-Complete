@@ -25,6 +25,65 @@ class TestReporter:
         with pytest.raises(ValueError):
             get_reporter("unknown")
 
+def make_report_data(sample_coins, provider):
+
+    highest = max(
+        sample_coins,
+        key=lambda coin: coin.total_volume or 0,
+    )
+
+    return {
+        "generated_at": "2026-07-15 11:30:00",
+        "provider": provider,
+        "total_coins": len(sample_coins),
+        "total_market_cap": sum(
+            coin.market_cap
+            for coin in sample_coins
+            if coin.market_cap is not None
+        ),
+        "top_gainers": [
+            {
+                "name": coin.name,
+                "symbol": coin.symbol,
+                "price": coin.current_price,
+                "24h_change": coin.price_change_for_24h,
+            }
+            for coin in sorted(
+                sample_coins,
+                key=lambda coin: coin.price_change_for_24h or float("-inf"),
+                reverse=True,
+            )[:3]
+        ],
+        "top_losers": [
+            {
+                "name": coin.name,
+                "symbol": coin.symbol,
+                "price": coin.current_price,
+                "24h_change": coin.price_change_for_24h,
+            }
+            for coin in sorted(
+                sample_coins,
+                key=lambda coin: coin.price_change_for_24h or float("inf"),
+            )[:3]
+        ],
+        "all_coins": [
+            {
+                "name": coin.name,
+                "symbol": coin.symbol,
+                "price": coin.current_price,
+                "volume_24h": coin.total_volume,
+                "24h_change": coin.price_change_for_24h,
+            }
+            for coin in sample_coins
+        ],
+        "highest_volume": {
+            "name": highest.name,
+            "symbol": highest.symbol,
+            "volume": highest.total_volume,
+        }
+    }
+
+
 class TestJsonReporter:
 
     def test_json_reporter(self, sample_coins, tmp_path):
@@ -32,8 +91,8 @@ class TestJsonReporter:
         reporter = get_reporter("json")
         reporter.filename = str(filepath)
 
-        portfolio = CryptoPortfolio(sample_coins)
-        reporter.report(portfolio, "TestJsonProvider", top_count=3)
+        data = make_report_data(sample_coins, "TestJsonProvider")
+        reporter.report(data)
 
         assert filepath.exists()
 
@@ -57,8 +116,8 @@ class TestCsvReporter:
         reporter = get_reporter("csv")
         reporter.filename = str(file_path)
 
-        portfolio = CryptoPortfolio(sample_coins)
-        reporter.report(portfolio, "TestCsvProvider", top_count=3)
+        data = make_report_data(sample_coins, "TestCsvProvider")
+        reporter.report(data)
 
         assert file_path.exists()
 
@@ -92,8 +151,8 @@ class TestConsolReporter:
         reporter = get_reporter("console")
         reporter.console = fake_console
 
-        portfolio = CryptoPortfolio(sample_coins)
-        reporter.report(portfolio, "TestConsoleProvider", top_count=3)
+        data = make_report_data(sample_coins, "TestConsoleProvider")
+        reporter.report(data)
 
         result = output.getvalue()
 

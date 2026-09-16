@@ -3,6 +3,7 @@ from .console import ConsoleReporter
 from .json_reporter import JsonReporter
 from .csv_reporter import CsvReporter
 
+
 def get_reporter(output: str) -> BaseReporter:
     if output == "console":
         return ConsoleReporter()

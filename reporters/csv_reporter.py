@@ -1,7 +1,7 @@
 import csv
 
 from .base import BaseReporter
-from models.portfolio import CryptoPortfolio
+
 
 class CsvReporter(BaseReporter):
 
@@ -9,42 +9,75 @@ class CsvReporter(BaseReporter):
         super().__init__()
         self.filename = filename
 
-    def report(self, portfolio: CryptoPortfolio, provider_name: str, top_count: int = 3) -> None:
-
-        gainers = portfolio.get_top_gainers(top_count)
-        losers = portfolio.get_top_losers(top_count)
-        highest = portfolio.get_highest_volume()
-
+    def report(self, data: dict) -> None:
         with open(self.filename, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
 
             writer.writerow(["Crypto Market Analysis"])
-            writer.writerow([f"Generated: {self.generate_at}"])
-            writer.writerow([f"Provider: {provider_name}"])
+            writer.writerow([f"Generated: {data['generated_at']}"])
+            writer.writerow([f"Provider: {data['provider']}"])
             writer.writerow([])
 
             writer.writerow(["Top Gainers"])
             writer.writerow(["Name", "Symbol", "Price", "24h Change"])
-            for coin in gainers:
-                price = f"${coin.current_price:,.2f}" if coin.current_price is not None else "Данных нет"
-                change = f"{coin.price_change_for_24h:+.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
-                writer.writerow([coin.name, coin.symbol, price, change])
+
+            for coin in data["top_gainers"]:
+                price = (
+                    f"${coin['price']:,.2f}"
+                    if coin["price"] is not None
+                    else "Данных нет"
+                )
+                change = (
+                    f"{coin['24h_change']:+.2f}%"
+                    if coin["24h_change"] is not None
+                    else "Данных нет"
+                )
+
+                writer.writerow([
+                    coin["name"],
+                    coin["symbol"],
+                    price,
+                    change,
+                ])
 
             writer.writerow([])
 
             writer.writerow(["Top Losers"])
             writer.writerow(["Name", "Symbol", "Price", "24h Change"])
 
-            for coin in losers:
-                price = f"${coin.current_price:,.2f}" if coin.current_price is not None else "Данных нет"
-                change = f"{coin.price_change_for_24h:+.2f}%" if coin.price_change_for_24h is not None else "Данных нет"
-                writer.writerow([coin.name, coin.symbol, price, change])
+            for coin in data["top_losers"]:
+                price = (
+                    f"${coin['price']:,.2f}"
+                    if coin["price"] is not None
+                    else "Данных нет"
+                )
+                change = (
+                    f"{coin['24h_change']:+.2f}%"
+                    if coin["24h_change"] is not None
+                    else "Данных нет"
+                )
+
+                writer.writerow([
+                    coin["name"],
+                    coin["symbol"],
+                    price,
+                    change,
+                ])
+
             writer.writerow([])
 
             writer.writerow(["Summary"])
-            writer.writerow(["Total coins", len(portfolio)])
-            writer.writerow(["Total Market Cap", f"{portfolio.get_total_market_cap():,.0f}"])
-            if highest:
+            writer.writerow(["Total coins", data["total_coins"]])
+            writer.writerow([
+                "Total Market Cap",
+                f"{data['total_market_cap']:,.0f}",
+            ])
 
-                writer.writerow(["Highest Volume", f"{highest.name} ({highest.symbol})"])
-            print(f"Файл сохранен - {self.filename}")
+            highest = data["highest_volume"]
+            if highest:
+                writer.writerow([
+                    "Highest Volume",
+                    f"{highest['name']} ({highest['symbol']})",
+                ])
+
+        print(f"Файл сохранен - {self.filename}")

@@ -5,11 +5,14 @@ __pycache__/
 .idea/
 .venv/
 venv/
+
 .env
 
 # Coverage
 .coverage
 htmlcov/
 
-crypto_report.json
+*.db
+
 crypto_report.csv
+crypto_report.json
