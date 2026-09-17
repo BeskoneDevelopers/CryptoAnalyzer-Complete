@@ -71,28 +71,48 @@ class PortfolioService:
 
     @staticmethod
     def get_summary(user: User):
-        try:
-            balance = Balance.objects.get(user=user)
-        except Balance.DoesNotExist:
-            raise ValueError("Баланс пользователя не найден") from None
+        with transaction.atomic():
+            try:
+                balance = Balance.objects.select_for_update().get(user=user)
+            except Balance.DoesNotExist:
+                raise ValueError("Баланс пользователя не найден") from None
 
-        positions = Portfolio.objects.filter(user=user)
-        coin_ids = positions.values_list("coin_id", flat=True)
-        prices_map = get_latest_prices(coin_ids)
-        portfolio_value = Decimal("0")
+            positions = Portfolio.objects.filter(user=user)
+            coin_ids = positions.values_list("coin_id", flat=True)
+            prices_map = get_latest_prices(coin_ids)
 
-        for position in positions:
-            price = prices_map.get(position.coin_id)
+            purchase_value = Decimal("0")
+            calculated_portfolio_value = Decimal("0")
+            has_missing_price = False
 
-            if price is None:
-                raise ValueError(f"Цена монеты {position.coin_id} не найдена")
+            for position in positions:
+                purchase_value += position.amount * position.buy_price
 
-            portfolio_value += position.amount * price
+                price = prices_map.get(position.coin_id)
 
-        total_value = balance.amount + portfolio_value
+                if price is None:
+                    has_missing_price = True
+                    continue
 
-        return {
-            "balance": balance.amount,
-            "portfolio_value": portfolio_value,
-            "total_value": total_value,
-        }
+                calculated_portfolio_value += position.amount * price
+
+            portfolio_value: Decimal | None
+            profit_loss: Decimal | None
+            total_value: Decimal | None
+
+            if has_missing_price:
+                portfolio_value = None
+                profit_loss = None
+                total_value = None
+            else:
+                portfolio_value = calculated_portfolio_value
+                profit_loss = portfolio_value - purchase_value
+                total_value = balance.amount + portfolio_value
+
+            return {
+                "balance": balance.amount,
+                "purchase_value": purchase_value,
+                "portfolio_value": portfolio_value,
+                "profit_loss": profit_loss,
+                "total_value": total_value,
+            }

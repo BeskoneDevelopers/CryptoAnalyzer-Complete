@@ -272,10 +272,10 @@ class PortfolioListView(ListAPIView):
         IsAuthenticated,
     ]
 
-    def get_queryset(self):
-        return Portfolio.objects.filter(user=self.request.user).order_by("id")
+    def get_queryset(self) -> QuerySet[Portfolio]:
+        return Portfolio.objects.filter(user=self.request.user).select_related("coin").order_by("id")
 
-    def get_serializer_context(self):
+    def get_serializer_context(self) -> dict[str, Any]:
         context = super().get_serializer_context()
 
         portfolio = self.get_queryset()
@@ -296,7 +296,7 @@ class PortfolioBuyView(APIView):
         request=PortfolioBuySerializer,
         responses={200: dict},
     )
-    def post(self, request, version):
+    def post(self, request: Request, version: str | None = None) -> Response:
         serializer = PortfolioBuySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -323,7 +323,7 @@ class PortfolioSellView(APIView):
         request=PortfolioSellSerializer,
         responses={200: dict},
     )
-    def post(self, request, version):
+    def post(self, request: Request, version: str | None = None) -> Response:
         serializer = PortfolioSellSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -349,7 +349,7 @@ class PortfolioSummaryView(APIView):
     @extend_schema(
         responses=PortfolioSummarySerializer,
     )
-    def get(self, request, version):
+    def get(self, request: Request, version: str | None = None) -> Response:
         try:
             result = PortfolioService.get_summary(
                 user=request.user,

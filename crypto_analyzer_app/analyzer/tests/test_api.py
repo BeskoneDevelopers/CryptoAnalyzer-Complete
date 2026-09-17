@@ -595,6 +595,16 @@ class PortfolioAPITest(TestCase):
         )
 
         self.assertEqual(
+            data["purchase_value"],
+            "60000.000000000000",
+        )
+
+        self.assertEqual(
+            data["profit_loss"],
+            "15000.000000000000",
+        )
+
+        self.assertEqual(
             data["total_value"],
             "175000.000000000000",
         )
@@ -794,6 +804,40 @@ class PortfolioAPITest(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["code"], "validation_error")
+
+    def test_summary_without_current_price(self):
+        coin = Coin.objects.create(
+            name="Ethereum",
+            symbol="ETH",
+        )
+
+        Portfolio.objects.create(
+            user=self.user,
+            coin=coin,
+            amount=Decimal("2"),
+            buy_price=Decimal("3000"),
+        )
+
+        response = self.client.get(
+            "/api/v1/portfolio/summary/",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()["data"]
+
+        self.assertEqual(
+            data["balance"],
+            "100000.000000000000",
+        )
+        self.assertEqual(
+            data["purchase_value"],
+            "6000.000000000000",
+        )
+        self.assertIsNone(data["portfolio_value"])
+        self.assertIsNone(data["profit_loss"])
+        self.assertIsNone(data["total_value"])
 
 
 class AnyTests(TestCase):
