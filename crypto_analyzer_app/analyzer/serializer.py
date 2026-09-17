@@ -129,10 +129,10 @@ class PortfolioSerializer(serializers.ModelSerializer):
         model = Portfolio
         fields = ["coin", "symbol", "amount", "buy_price", "current_price", "current_value"]
 
-    def get_coin(self, obj):
+    def get_coin(self, obj: Portfolio) -> str:
         return obj.coin.name
 
-    def get_symbol(self, obj):
+    def get_symbol(self, obj: Portfolio) -> str:
         return obj.coin.symbol.upper()
 
     def _get_current_price(self, obj: Portfolio) -> Decimal | None:
@@ -173,11 +173,24 @@ class PortfolioSummarySerializer(serializers.Serializer):
         max_digits=36,
         decimal_places=12,
     )
-    portfolio_value = serializers.DecimalField(
+    purchase_value = serializers.DecimalField(
         max_digits=36,
         decimal_places=12,
     )
+    portfolio_value = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+        allow_null=True,
+    )
+
+    profit_loss = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+        allow_null=True,
+    )
+
     total_value = serializers.DecimalField(
         max_digits=36,
         decimal_places=12,
+        allow_null=True,
     )
