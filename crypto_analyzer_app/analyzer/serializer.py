@@ -7,17 +7,56 @@ from .services import validate_symbol as service_validate_symbol, add_to_watchli
 
 class CoinFilter(filters.FilterSet):
     symbol = filters.CharFilter(lookup_expr="iexact")
+    min_price = filters.NumberFilter(
+        method="filter_min_price",
+        field_name="min_price",
+        label="min price",
+    )
+    max_price = filters.NumberFilter(
+        method="filter_max_price",
+        field_name="max_price",
+        label="max price",
+    )
 
     class Meta:
         model = Coin
-        fields = ["symbol"]
+        fields = ["symbol", "min_price", "max_price"]
+
+    def _latest_coin_ids(self, price_lookup):
+        if not hasattr(self, "snapshot"):
+            self.snapshot = Snapshot.objects.last()
+
+        if not self.snapshot:
+            return Coin.objects.none()
+
+        return CoinPrice.objects.filter(
+            snapshot=self.snapshot,
+            **price_lookup,
+        ).values_list("coin_id", flat=True)
+
+    def filter_max_price(self, queryset, name, value):
+        coin_ids = self._latest_coin_ids({"price__lte": value})
+        return queryset.filter(id__in=coin_ids)
+
+    def filter_min_price(self, queryset, name, value):
+        coin_ids = self._latest_coin_ids({"price__gte": value})
+        return queryset.filter(id__in=coin_ids)
+
 
 
 
 class CoinPriceSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoinPrice
-        fields = ["id", "coin", "snapshot", "price", "volume_24h", "change_24h", "market_cap"]
+        fields = [
+            "id",
+            "coin",
+            "snapshot",
+            "price",
+            "volume_24h",
+            "change_24h",
+            "market_cap",
+        ]
 
 
 class CoinSerializer(serializers.ModelSerializer):
@@ -71,3 +110,12 @@ class WatchlistOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = WatchlistItem
         fields = ["id", "coin", "added_at"]
+
+
+class CoinPriceAnalyticSerializer(serializers.ModelSerializer):
+    coin_name = serializers.CharField(source="coin.name", read_only=True)
+    coin_symbol = serializers.CharField(source="coin.symbol", read_only=True)
+
+    class Meta:
+        model = CoinPrice
+        fields = ["coin_name", "coin_symbol", "price", "volume_24h", "change_24h"]

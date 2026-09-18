@@ -2,14 +2,15 @@
 from rest_framework.decorators import action
 from  rest_framework.response import Response
 from django_filters import rest_framework as filters
+from rest_framework.views import APIView
 
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from rest_framework.permissions import IsAuthenticated
 
 from .models import Snapshot, Coin, WatchlistItem
-from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, WatchlistInputSerializer, WatchlistOutputSerializer
-from .services import remove_from_watchlist
+from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, WatchlistInputSerializer, WatchlistOutputSerializer, CoinPriceAnalyticSerializer
+from .services import remove_from_watchlist, get_market_stats, get_top_movers, get_top_volume
 
 
 class SnapshotViewSet(ReadOnlyModelViewSet):
@@ -18,10 +19,15 @@ class SnapshotViewSet(ReadOnlyModelViewSet):
 
 
 class CoinViewSet(ReadOnlyModelViewSet):
-    queryset = Coin.objects.all()
+    queryset = (
+        Coin.objects
+        .prefetch_related("prices")
+        .order_by("id")
+    )
     serializer_class = CoinSerializer
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = CoinFilter
+
 
 class WatchlistViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated,]
@@ -32,7 +38,7 @@ class WatchlistViewSet(ModelViewSet):
         return WatchlistOutputSerializer
 
     def get_queryset(self):
-        return WatchlistItem.objects.filter(user=self.request.user)
+        return WatchlistItem.objects.filter(user=self.request.user).select_related("coin")
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -52,3 +58,34 @@ class WatchlistViewSet(ModelViewSet):
             return Response(result, status=404)
 
         return Response(result, status=200)
+
+
+class MarketStatusView(APIView):
+    def get(self, request):
+        stats = get_market_stats()
+        if "error" in stats:
+            return Response(stats, status=404)
+        return Response(stats)
+
+
+class TopAnalyticsView(APIView):
+    source = None
+
+    def get(self, request):
+        data = self.source()
+
+        if isinstance(data, dict) and "error" in data:
+            return Response(data, status=404)
+
+        serializer = CoinPriceAnalyticSerializer(data, many=True)
+        return Response(serializer.data)
+
+
+class VolumeTopView(APIView):
+    def get(self, request):
+        toper = get_top_volume()
+        if isinstance(toper, dict) and "error" in toper:
+            return Response(toper, status=404)
+
+        serializer = CoinPriceAnalyticSerializer(toper, many=True)
+        return Response(serializer.data)
