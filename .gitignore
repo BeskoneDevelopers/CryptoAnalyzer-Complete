@@ -53,6 +53,9 @@ build/
 analyze_tests.py
 analysis_prompt.txt
 
+# Databases
+*.db
+
 # Reports
 crypto_report.csv
 crypto_report.json

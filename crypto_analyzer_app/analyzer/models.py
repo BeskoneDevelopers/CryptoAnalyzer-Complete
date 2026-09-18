@@ -19,6 +19,7 @@ class Snapshot(models.Model):
 
     class Meta:
         verbose_name_plural = "snapshots"
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.created_at} - {self.provider} - {self.total_coins}"
