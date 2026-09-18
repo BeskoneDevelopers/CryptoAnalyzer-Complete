@@ -170,6 +170,7 @@ REST_FRAMEWORK = {
         "anon": "5/min",
         "user": "100/min",
         "admin": "1000/min",
+        "login": "5/min",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }

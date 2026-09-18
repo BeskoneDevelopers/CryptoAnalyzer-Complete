@@ -26,3 +26,7 @@ class AdminRateThrottle(UserRateThrottle):
             return True
 
         return super().allow_request(request, view)
+
+
+class LoginRateThrottle(AnonRateThrottle):
+    scope = "login"
