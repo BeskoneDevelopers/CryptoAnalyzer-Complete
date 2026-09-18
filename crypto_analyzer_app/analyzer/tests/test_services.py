@@ -1,13 +1,14 @@
 import pytest
-from unittest.mock import patch, Mock
-
 import requests
+from unittest.mock import Mock, patch
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
 from analyzer.services import add_to_watchlist, remove_from_watchlist, validate_symbol
 from analyzer.tasks import _get_retry_countdown
+
 
 User = get_user_model()
 
@@ -32,12 +33,6 @@ class ValidateSymbolTests(TestCase):
         self.assertFalse(temp)
         mock_get.assert_called_once_with("https://api.coingecko.com/api/v3/search?query=ttv")
 
-    def test_fetch_snapshot_unknown_provider(self):
-        from analyzer.tasks import fetch_snapshot_task
-        with pytest.raises(ValueError, match="Неизвестный провайдер"):
-            fetch_snapshot_task.run(provider="test")
-
-
 
 class WatchlistTests(TestCase):
 
@@ -57,15 +52,64 @@ class WatchlistTests(TestCase):
         )
 
         self.assertEqual(result.user, user)
-        self.assertEqual(result.coin.symbol, "btc")
+        self.assertEqual(result.coin.symbol, "BTC")
         self.assertEqual(result.coin.name, "Bitcoin")
 
     def test_remove_from_watchlist_success(self):
         user = User.objects.create_user(username="tester", password="321")
-        coin = Coin.objects.create(name="Bitcoin", symbol="btc")
+        coin = Coin.objects.create(name="Bitcoin", symbol="BTC")
         WatchlistItem.objects.create(user=user, coin=coin)
         result = remove_from_watchlist(user, "btc")
         self.assertEqual(result, {"valid": True, "message": "Данные успешно удалены"})
+
+    def test_coin_endpoint_is_read_only(self):
+        response = self.client.post(
+            "/api/coins/",
+            {
+                "name": "Bitcoin",
+                "symbol": "BTC",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 405)
+
+    def test_snapshot_endpoint_is_read_only(self):
+        coin = Coin.objects.create(
+            name="Bitcoin",
+            symbol="BTC",
+        )
+
+        snapshot = Snapshot.objects.create(
+            provider="test",
+            total_coins=1,
+            total_market_cap="100.00",
+        )
+
+        CoinPrice.objects.create(
+            coin=coin,
+            snapshot=snapshot,
+            price="50.00",
+            volume_24h="1000.00",
+            change_24h="1.50",
+            market_cap="5000.00",
+        )
+
+        get_response = self.client.get("/api/snapshots/")
+        self.assertEqual(get_response.status_code, 200)
+
+        post_response = self.client.post(
+            "/api/snapshots/",
+            {
+                "provider": "test",
+                "total_coins": 1,
+                "total_market_cap": "100.00",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(post_response.status_code, 405)
+
 
 class CeleryTasksTests(TestCase):
     @patch("analyzer.tasks._fetch_data")
@@ -149,7 +193,12 @@ class CeleryTasksTests(TestCase):
         self.assertEqual(bbc_price.coin.name, "Bibcoin")
 
     def test_retry_countdown_backoff(self):
-        self.assertEqual(_get_retry_countdown(0),60)
-        self.assertEqual(_get_retry_countdown(1),120)
-        self.assertEqual(_get_retry_countdown(2),240)
-        self.assertEqual(_get_retry_countdown(3),300)
+        self.assertEqual(_get_retry_countdown(0), 60)
+        self.assertEqual(_get_retry_countdown(1), 120)
+        self.assertEqual(_get_retry_countdown(2), 240)
+        self.assertEqual(_get_retry_countdown(3), 300)
+
+    def test_fetch_snapshot_unknown_provider(self):
+        from analyzer.tasks import fetch_snapshot_task
+        with pytest.raises(ValueError, match="Неизвестный провайдер"):
+            fetch_snapshot_task.run(provider="test")

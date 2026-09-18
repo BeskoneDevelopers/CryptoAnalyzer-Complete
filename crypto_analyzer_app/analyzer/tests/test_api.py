@@ -47,11 +47,10 @@ class WatchlistAPI(TestCase):
         self.assertEqual(
             WatchlistItem.objects.filter(
                 user=self.user,
-                coin__symbol="btc",
+                coin__symbol="BTC",
             ).count(),
-            1
+            1,
         )
-
 
     def test_watchlist_query_count(self):
         coin_one = Coin.objects.create(name="Bobrcoin", symbol="bobr")
@@ -62,7 +61,7 @@ class WatchlistAPI(TestCase):
         with self.assertNumQueries(3):
             response = self.client.get(
                 "/api/watchlist/",
-                HTTP_AUTHORIZATION=self.auth_header
+                HTTP_AUTHORIZATION=self.auth_header,
             )
 
         self.assertEqual(response.status_code, 200)
@@ -73,6 +72,7 @@ class WatchlistAPI(TestCase):
             "valid": True,
             "name": "Bitcoin",
         }
+
 
         response = self.client.post(
             "/api/watchlist/",
@@ -98,6 +98,7 @@ class WatchlistAPI(TestCase):
 
         token_b = response.json()["access"]
         auth_header_b = f"Bearer {token_b}"
+
 
         response = self.client.get(
             "/api/watchlist/",
@@ -218,6 +219,12 @@ class AnalyticsAPITest(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()["error"], "Снимков нет!")
 
+    def test_volume_toper_empty(self):
+        response = self.client.get("/api/analytics/volume-leaders/")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"], "Снимков нет!")
+
     def test_coins_filter_price_range(self):
         snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=100000)
         ntc = Coin.objects.create(name="Nitcoin", symbol="ntc")
@@ -228,24 +235,17 @@ class AnalyticsAPITest(TestCase):
 
         response = self.client.get("/api/coins/?min_price=100")
         self.assertEqual(response.status_code, 200)
-        results = response.json()
-        if isinstance(results, list):
-            self.assertEqual(len(results), 1)
-            self.assertEqual(results[0]["symbol"], "ntc")
-        else:
-            self.assertEqual(len(results["results"]), 1)
-            self.assertEqual(results["results"][0]["symbol"], "ntc")
+
+        results = response.json()["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["symbol"], "ntc")
 
         response = self.client.get("/api/coins/?max_price=50")
         self.assertEqual(response.status_code, 200)
-        results = response.json()
-        if isinstance(results, list):
-            self.assertEqual(len(results), 1)
-            self.assertEqual(results[0]["symbol"], "pep")
-        else:
-            self.assertEqual(len(results["results"]), 1)
-            self.assertEqual(results["results"][0]["symbol"], "pep")
 
+        results = response.json()["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["symbol"], "pep")
 
 class CeleryAPITest(TestCase):
 
@@ -286,7 +286,6 @@ class CeleryAPITest(TestCase):
 
     @patch("analyzer.tasks._fetch_data")
     def test_task_status(self, mock_featch):
-        from analyzer.tasks import fetch_snapshot_task
 
         mock_featch.return_value = [
             {
@@ -309,9 +308,45 @@ class CeleryAPITest(TestCase):
 
         status_url = f"/api/snapshots/tasks/{task_id}/"
         status_response = self.client.get(status_url)
+
         self.assertEqual(status_response.status_code, 200)
 
         data = status_response.json()
         self.assertEqual(data["status"], "SUCCESS")
         self.assertEqual(data["result"]["total_coins"], 1)
         mock_featch.assert_called_once_with("coingecko", 1)
+
+    def test_refresh_token_cannot_be_reused_after_rotation(self):
+        user = User.objects.create_user(
+            username="jwt_user",
+            password="test_password_123",
+        )
+
+        token_response = self.client.post(
+            "/api/token/",
+            {
+                "username": user.username,
+                "password": "test_password_123",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(token_response.status_code, 200)
+
+        refresh = token_response.json()["refresh"]
+
+        first_refresh = self.client.post(
+            "/api/token/refresh/",
+            {"refresh": refresh},
+            content_type="application/json",
+        )
+
+        self.assertEqual(first_refresh.status_code, 200)
+
+        second_refresh = self.client.post(
+            "/api/token/refresh/",
+            {"refresh": refresh},
+            content_type="application/json",
+        )
+
+        self.assertEqual(second_refresh.status_code, 401)
