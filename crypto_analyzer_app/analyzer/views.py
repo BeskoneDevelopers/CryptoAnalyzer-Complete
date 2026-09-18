@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 
 from django.db.models import QuerySet
@@ -173,8 +174,25 @@ class MarketStatusView(APIView):
         return Response(data)
 
 
-class TopMoversView(APIView):
+class TopAnalyticsView(APIView):
+    source: Callable[..., Any] | None = None
+
+    def get(self, request: Request, version: str | None = None) -> Response:
+        if self.source is None:
+            raise RuntimeError("Analytics source is not configured")
+
+        data = self.source()
+
+        if isinstance(data, dict) and "error" in data:
+            raise NotFound("Снимков нет")
+
+        serializer = CoinPriceAnalyticSerializer(data, many=True)
+        return Response(serializer.data)
+
+
+class TopMoversView(TopAnalyticsView):
     tags = ["Analytics"]
+    source = staticmethod(get_cached_top_movers)
 
     @extend_schema(
         summary="Получить лидеров роста и падения",
@@ -185,16 +203,12 @@ class TopMoversView(APIView):
         },
     )
     def get(self, request: Request, version: str | None = None) -> Response:
-        data = get_cached_top_movers()
-
-        if isinstance(data, dict) and "error" in data:
-            raise NotFound("Снимков нет")
-
-        return Response(data)
+        return super().get(request, version)
 
 
-class VolumeTopView(APIView):
+class VolumeTopView(TopAnalyticsView):
     tags = ["Analytics"]
+    source = staticmethod(get_cached_top_volume)
 
     @extend_schema(
         summary="Получить лидеров по объёму",
@@ -205,12 +219,7 @@ class VolumeTopView(APIView):
         },
     )
     def get(self, request: Request, version: str | None = None) -> Response:
-        data = get_cached_top_volume()
-
-        if isinstance(data, dict) and "error" in data:
-            raise NotFound("Снимков нет")
-
-        return Response(data)
+        return super().get(request, version)
 
 
 class StartSnapshotTaskView(APIView):
