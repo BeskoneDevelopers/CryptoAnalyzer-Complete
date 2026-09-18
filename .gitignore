@@ -50,8 +50,8 @@ build/
 # PyInstaller
 *.spec
 
-celerybeat-schedule
-celerybeat-schedule.*
+# Celery Beat
+celerybeat-schedule*
 
 # Local analysis files
 analyze_tests.py

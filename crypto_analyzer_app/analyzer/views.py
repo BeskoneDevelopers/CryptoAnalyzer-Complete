@@ -2,6 +2,8 @@ from collections.abc import Callable
 from typing import Any
 
 from django.db.models import QuerySet
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
@@ -27,9 +29,9 @@ from .serializer import (
     WatchlistOutputSerializer,
 )
 from .services import (
-    get_market_stats,
-    get_top_movers,
-    get_top_volume,
+    get_cached_market_stats,
+    get_cached_top_movers,
+    get_cached_top_volume,
     remove_from_watchlist,
 )
 from .tasks import fetch_snapshot_task
@@ -69,6 +71,7 @@ class SnapshotViewSet(ReadOnlyModelViewSet):
         description="Возвращает один снимок с ценами",
         responses={200: SnapshotSerializer, 404: OpenApiResponse(description="Снимки не найдены")},
     )
+    @method_decorator(cache_page(60 * 60))
     def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         return super().retrieve(request, *args, **kwargs)
 
@@ -163,12 +166,12 @@ class MarketStatusView(APIView):
         },
     )
     def get(self, request: Request, version: str | None = None) -> Response:
-        stats = get_market_stats()
+        data = get_cached_market_stats()
 
-        if "error" in stats:
+        if isinstance(data, dict) and "error" in data:
             raise NotFound("Снимков нет")
 
-        return Response(stats)
+        return Response(data)
 
 
 class TopAnalyticsView(APIView):
@@ -189,7 +192,7 @@ class TopAnalyticsView(APIView):
 
 class TopMoversView(TopAnalyticsView):
     tags = ["Analytics"]
-    source = staticmethod(get_top_movers)
+    source = staticmethod(get_cached_top_movers)
 
     @extend_schema(
         summary="Получить лидеров роста и падения",
@@ -205,7 +208,7 @@ class TopMoversView(TopAnalyticsView):
 
 class VolumeTopView(TopAnalyticsView):
     tags = ["Analytics"]
-    source = staticmethod(get_top_volume)
+    source = staticmethod(get_cached_top_volume)
 
     @extend_schema(
         summary="Получить лидеров по объёму",
