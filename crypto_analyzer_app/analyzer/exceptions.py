@@ -1,3 +1,5 @@
+import os
+
 from django.http import Http404
 from rest_framework.exceptions import (
     AuthenticationFailed,
