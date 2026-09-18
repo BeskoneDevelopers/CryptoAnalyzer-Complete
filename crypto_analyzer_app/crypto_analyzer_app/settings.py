@@ -228,8 +228,9 @@ STORAGES = {
 
 EXCHANGE_PROVIDER = os.getenv("EXCHANGE_PROVIDER", "coingecko")
 
-CELERY_BROKER_URL = "redis://localhost:6379"
-CELERY_RESULT_BACKEND = "redis://localhost:6379"
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+CELERY_BROKER_URL = f"redis://{REDIS_HOST}:6379"
+CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:6379"
 
 CELERY_BEAT_SCHEDULE = {
     "fetch-snapshot-every-5-minutes": {
