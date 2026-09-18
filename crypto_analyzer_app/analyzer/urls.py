@@ -27,7 +27,6 @@ router.register("snapshots", SnapshotViewSet, basename="snapshots")
 router.register("coins", CoinViewSet, basename="coins")
 router.register("watchlist", WatchlistViewSet, basename="watchlist")
 
-
 urlpatterns = [
     path("analytics/market-stats/", MarketStatusView.as_view(), name="market-stats"),
     path("analytics/top-movers/", TopMoversView.as_view(), name="top-movers"),

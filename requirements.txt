@@ -1,3 +1,4 @@
+﻿
 amqp==5.3.1
 asgiref==3.12.1
 ast_serialize==0.11.1
@@ -12,7 +13,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 colorama==0.4.6
 distlib==0.4.3
-Django==6.1.1
+Django==6.0.7
 django-debug-toolbar==8.0.0
 django-redis==7.0.0
 django-filter==26.1
@@ -61,4 +62,5 @@ vine==5.1.0
 whitenoise==6.12.0
 virtualenv==21.7.9
 wcwidth==0.8.3
+requests-mock==1.12.1
 gunicorn==26.2.0
