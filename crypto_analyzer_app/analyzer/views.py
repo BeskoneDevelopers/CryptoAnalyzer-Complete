@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 
 from atomic_tasks.services import PortfolioService
@@ -180,8 +181,25 @@ class MarketStatusView(APIView):
         return Response(data)
 
 
-class TopMoversView(APIView):
+class TopAnalyticsView(APIView):
+    source: Callable[..., Any] | None = None
+
+    def get(self, request: Request, version: str | None = None) -> Response:
+        if self.source is None:
+            raise RuntimeError("Analytics source is not configured")
+
+        data = self.source()
+
+        if isinstance(data, dict) and "error" in data:
+            raise NotFound("Снимков нет")
+
+        serializer = CoinPriceAnalyticSerializer(data, many=True)
+        return Response(serializer.data)
+
+
+class TopMoversView(TopAnalyticsView):
     tags = ["Analytics"]
+    source = staticmethod(get_cached_top_movers)
 
     @extend_schema(
         summary="Получить лидеров роста и падения",
@@ -200,8 +218,9 @@ class TopMoversView(APIView):
         return Response(data)
 
 
-class VolumeTopView(APIView):
+class VolumeTopView(TopAnalyticsView):
     tags = ["Analytics"]
+    source = staticmethod(get_cached_top_volume)
 
     @extend_schema(
         summary="Получить лидеров по объёму",

@@ -56,6 +56,7 @@ class CoinPriceSerializer(serializers.ModelSerializer):
             "price",
             "volume_24h",
             "change_24h",
+            "market_cap",
         ]
 
 
@@ -79,7 +80,7 @@ class WatchlistInputSerializer(serializers.Serializer):
     symbol = serializers.CharField()
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        symbol = attrs["symbol"].strip().lower()
+        symbol = attrs["symbol"].strip().upper()
 
         result = service_validate_symbol(symbol)
 

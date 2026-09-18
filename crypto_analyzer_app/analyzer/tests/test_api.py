@@ -55,12 +55,12 @@ class WatchlistAPI(TestCase):
         self.assertEqual(
             WatchlistItem.objects.filter(
                 user=self.user,
-                coin__symbol="btc",
+                coin__symbol="BTC",
             ).count(),
             1,
         )
 
-        mock_validate.assert_called_once_with("btc")
+        mock_validate.assert_called_once_with("BTC")
 
     def test_watchlist_query_count(self):
         coin_one = Coin.objects.create(name="Bobrcoin", symbol="bobr")
@@ -70,7 +70,10 @@ class WatchlistAPI(TestCase):
 
         reset_queries()
         with self.assertNumQueries(3):
-            response = self.client.get("/api/v1/watchlist/", HTTP_AUTHORIZATION=self.auth_header)
+            response = self.client.get(
+                "/api/v1/watchlist/",
+                HTTP_AUTHORIZATION=self.auth_header,
+            )
 
         self.assertEqual(response.status_code, 200)
 
@@ -210,23 +213,17 @@ class AnalyticsAPITest(TestCase):
 
         response = self.client.get("/api/v1/coins/?min_price=100")
         self.assertEqual(response.status_code, 200)
-        results = response.json()
-        if isinstance(results, list):
-            self.assertEqual(len(results), 1)
-            self.assertEqual(results[0]["symbol"], "ntc")
-        else:
-            self.assertEqual(len(results["results"]), 1)
-            self.assertEqual(results["results"][0]["symbol"], "ntc")
+
+        results = response.json()["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["symbol"], "ntc")
 
         response = self.client.get("/api/v1/coins/?max_price=50")
         self.assertEqual(response.status_code, 200)
-        results = response.json()
-        if isinstance(results, list):
-            self.assertEqual(len(results), 1)
-            self.assertEqual(results[0]["symbol"], "pep")
-        else:
-            self.assertEqual(len(results["results"]), 1)
-            self.assertEqual(results["results"][0]["symbol"], "pep")
+
+        results = response.json()["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["symbol"], "pep")
 
     def test_coin_history_cursor_pagination(self):
         coin = Coin.objects.create(
@@ -901,3 +898,38 @@ class AnyTests(TestCase):
         assert response.data["code"] == "throttled"
         assert response.data["error"] == "Превышен лимит запросов"
         assert response["Retry-After"] == "60"
+
+    def test_refresh_token_cannot_be_reused_after_rotation(self):
+        user = User.objects.create_user(
+            username="jwt_user",
+            password="test_password_123",
+        )
+
+        token_response = self.client.post(
+            "/api/token/",
+            {
+                "username": user.username,
+                "password": "test_password_123",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(token_response.status_code, 200)
+
+        refresh = token_response.json()["refresh"]
+
+        first_refresh = self.client.post(
+            "/api/token/refresh/",
+            {"refresh": refresh},
+            content_type="application/json",
+        )
+
+        self.assertEqual(first_refresh.status_code, 200)
+
+        second_refresh = self.client.post(
+            "/api/token/refresh/",
+            {"refresh": refresh},
+            content_type="application/json",
+        )
+
+        self.assertEqual(second_refresh.status_code, 401)
