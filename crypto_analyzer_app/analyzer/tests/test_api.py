@@ -1,6 +1,7 @@
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
+import pytest
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import reset_queries
@@ -20,6 +21,7 @@ from analyzer.models import Balance, Coin, CoinPrice, Portfolio, Snapshot, Watch
 User = get_user_model()
 
 
+@pytest.mark.integration
 class WatchlistAPI(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="tester", password="testpass123")
@@ -129,6 +131,7 @@ class WatchlistAPI(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
+@pytest.mark.integration
 class AnalyticsAPITest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="tester", password="testpass123")
@@ -258,6 +261,7 @@ class AnalyticsAPITest(TestCase):
         self.assertIsNotNone(data["next"])
 
 
+@pytest.mark.integration
 class CeleryAPITest(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser(
@@ -296,6 +300,7 @@ class CeleryAPITest(TestCase):
         self.assertEqual(response.json()["status"], "PENDING")
 
 
+@pytest.mark.integration
 class ThrottleTests(TestCase):
     def setUp(self):
         cache.clear()  # сбрасываем счётчики throttle перед каждым тестом
@@ -351,6 +356,7 @@ class ThrottleTests(TestCase):
         )
 
 
+@pytest.mark.integration
 class PortfolioAPITest(TestCase):
     def setUp(self):
         cache.clear()
@@ -837,6 +843,7 @@ class PortfolioAPITest(TestCase):
         self.assertIsNone(data["total_value"])
 
 
+@pytest.mark.unit
 class AnyTests(TestCase):
     def test_custom_exception_handler_handles_django_http404(self):
         response = custom_exception_handler(Http404(), {})
