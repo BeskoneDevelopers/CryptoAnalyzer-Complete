@@ -1,61 +1,22 @@
 from django.core.management.base import BaseCommand, CommandError
 from analyzer.models import Coin, Snapshot, CoinPrice
-from django.db.models import Sum
 from django.conf import settings
-from django.db import transaction
 
-import requests
+from analyzer.tasks import fetch_snapshot_task
 
 class Command(BaseCommand):
     help = "Извлекает крипто-данные и создает снимок"
 
     def add_arguments(self, parser):
         parser.add_argument("--provider", type=str, default="coingecko")
-        parser.add_argument("--limit", type=int, default=100)
+        parser.add_argument("--limit", type=int, default=10)
 
     def handle(self, *args, **options):
         provider = options["provider"]
         limit = options["limit"]
 
-        if provider == "coinmarketcap" and not settings.CMC_API_KEY:
-            raise CommandError("Отсутствует API ключ в файле .env")
-
-        coins_data = self.fetch_data(provider, limit)
-
-        with transaction.atomic():
-            snapshot = Snapshot.objects.create(
-                provider=provider,
-                total_coins=len(coins_data),
-                total_market_cap=0
-            )
-
-            for coin_data in coins_data:
-                symbol = coin_data.get("symbol", "").upper()
-
-                coin, _ = Coin.objects.get_or_create(
-                    symbol=symbol,
-                    defaults={"name": coin_data.get("name", "")}
-                )
-
-                CoinPrice.objects.create(
-                    coin=coin,
-                    snapshot=snapshot,
-                    price=coin_data.get("current_price"),
-                    volume_24h=coin_data.get("total_volume"),
-                    change_24h=coin_data.get("price_change_percentage_24h"),
-                    market_cap=coin_data.get("market_cap"),
-                )
-
-            total_cap = CoinPrice.objects.filter(
-                snapshot=snapshot
-            ).aggregate(
-                total=Sum("market_cap")
-            )["total"] or 0
-
-            snapshot.total_market_cap = total_cap
-            snapshot.save()
-
-        self.stdout.write(f"Создание snapshot - {snapshot.id}")
+        task = fetch_snapshot_task.delay(provider, limit)
+        self.stdout.write(f"Операция создана: {task.id}")
 
     def fetch_data(self, provider, limit):
         if provider == "coingecko":

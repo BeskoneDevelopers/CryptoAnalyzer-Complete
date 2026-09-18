@@ -1,10 +1,14 @@
-from django.test import TestCase
-from unittest.mock import patch, Mock
+import pytest
+import requests
+from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 
-from analyzer.services import validate_symbol, add_to_watchlist, remove_from_watchlist
 from analyzer.models import Coin, CoinPrice, Snapshot, WatchlistItem
+from analyzer.services import add_to_watchlist, remove_from_watchlist, validate_symbol
+from analyzer.tasks import _get_retry_countdown
+
 
 User = get_user_model()
 
@@ -55,7 +59,7 @@ class WatchlistTests(TestCase):
         user = User.objects.create_user(username="tester", password="321")
         coin = Coin.objects.create(name="Bitcoin", symbol="BTC")
         WatchlistItem.objects.create(user=user, coin=coin)
-        result = remove_from_watchlist(user, "BTC")
+        result = remove_from_watchlist(user, "btc")
         self.assertEqual(result, {"valid": True, "message": "Данные успешно удалены"})
 
     def test_coin_endpoint_is_read_only(self):
@@ -105,3 +109,96 @@ class WatchlistTests(TestCase):
         )
 
         self.assertEqual(post_response.status_code, 405)
+
+
+class CeleryTasksTests(TestCase):
+    @patch("analyzer.tasks._fetch_data")
+    def test_success(self, mock_fetch):
+        from analyzer.tasks import fetch_snapshot_task
+        mock_fetch.return_value = [
+            {"name": "Bibicoin", "symbol": "bbc", "current_price": 50000, "total_volume": 100,
+             "price_change_percentage_24h": 5}
+        ]
+        result = fetch_snapshot_task.run("coingecko", 3)
+
+        self.assertEqual(result["snapshot_id"], Snapshot.objects.last().id)
+        self.assertEqual(Snapshot.objects.count(), 1)
+        self.assertEqual(CoinPrice.objects.count(), 1)
+
+        mock_fetch.assert_called_once_with("coingecko", 3)
+
+        coin = CoinPrice.objects.first()
+        self.assertEqual(coin.coin.symbol, "bbc")
+        self.assertEqual(coin.price, 50000)
+
+    @patch("analyzer.tasks._fetch_data")
+    def test_retry_on_conn_error(self, mock_fetch):
+        from analyzer.tasks import fetch_snapshot_task
+        mock_fetch.side_effect = requests.exceptions.ConnectionError("Нет соединения")
+
+        result = fetch_snapshot_task.apply(args=("coingecko", 3))
+
+        self.assertTrue(result.failed())
+        self.assertEqual(Snapshot.objects.count(), 0)
+        self.assertEqual(CoinPrice.objects.count(), 0)
+        self.assertEqual(mock_fetch.call_count, 4)
+
+    @patch("analyzer.tasks._fetch_data")
+    def test_idempotency(self, mock_fetch):
+        from analyzer.tasks import fetch_snapshot_task
+        mock_fetch.return_value = [
+            {"name": "Bibcoin", "symbol": "bbc", "current_price": 50000,
+             "total_volume": 100, "price_change_percentage_24h": 5}
+        ]
+
+        result1 = fetch_snapshot_task.run("coingecko", 3)
+        result2 = fetch_snapshot_task.run("coingecko", 3)
+        self.assertEqual(result1["snapshot_id"], result2["snapshot_id"])
+        self.assertTrue(result2.get("already_exists"))
+
+        self.assertEqual(Snapshot.objects.count(), 1)
+        self.assertEqual(CoinPrice.objects.count(), 1)
+
+
+    @patch("analyzer.tasks._fetch_data")
+    def test_multiple_coins(self, mock_fetch):
+        from analyzer.tasks import fetch_snapshot_task
+        mock_fetch.return_value = [
+            {
+                "name": "Bibcoin",
+                "symbol": "bbc",
+                "current_price": 50000,
+                "total_volume": 100,
+                "price_change_percentage_24h": 5
+            },
+            {
+                "name": "Ethereum",
+                "symbol": "eth",
+                "current_price": 3000,
+                "total_volume": 200,
+                "price_change_percentage_24h": -2
+            }
+        ]
+        result = fetch_snapshot_task.run("coingecko", 2)
+
+        self.assertEqual(result["snapshot_id"], Snapshot.objects.last().id)
+        self.assertEqual(CoinPrice.objects.count(), 2)
+        self.assertEqual(Snapshot.objects.count(), 1)
+
+        bbc_price = CoinPrice.objects.get(coin__symbol="bbc")
+        self.assertEqual(bbc_price.price, 50000)
+
+        eth_price = CoinPrice.objects.get(coin__symbol="eth")
+        self.assertEqual(eth_price.price, 3000)
+        self.assertEqual(bbc_price.coin.name, "Bibcoin")
+
+    def test_retry_countdown_backoff(self):
+        self.assertEqual(_get_retry_countdown(0), 60)
+        self.assertEqual(_get_retry_countdown(1), 120)
+        self.assertEqual(_get_retry_countdown(2), 240)
+        self.assertEqual(_get_retry_countdown(3), 300)
+
+    def test_fetch_snapshot_unknown_provider(self):
+        from analyzer.tasks import fetch_snapshot_task
+        with pytest.raises(ValueError, match="Неизвестный провайдер"):
+            fetch_snapshot_task.run(provider="test")
