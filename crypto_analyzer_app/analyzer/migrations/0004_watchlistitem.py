@@ -7,7 +7,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("analyzer", "0003_alter_coinprice_coin"),
+        ("analyzer", "0003_alter_coinprice_change_24h_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
