@@ -19,6 +19,7 @@ from analyzer.tasks import _get_retry_countdown
 User = get_user_model()
 
 
+@pytest.mark.integration
 class ValidateSymbolTests(TestCase):
     @patch("analyzer.services.requests.Session.get")
     def test_get_validate_symbol(self, mock_get):
@@ -45,6 +46,7 @@ class ValidateSymbolTests(TestCase):
             fetch_snapshot_task.run(provider="test")
 
 
+@pytest.mark.integration
 class WatchlistTests(TestCase):
     def test_add_to_watchlist_success(self):
         user = User.objects.create_user(
@@ -73,6 +75,7 @@ class WatchlistTests(TestCase):
         self.assertEqual(result, {"valid": True, "message": "Данные успешно удалены"})
 
 
+@pytest.mark.integration
 class CeleryTasksTests(TestCase):
     @patch("analyzer.tasks._fetch_data")
     def test_success(self, mock_fetch):
@@ -200,6 +203,7 @@ class CeleryTasksTests(TestCase):
         mock_refresh_cache.assert_called_once_with()
 
 
+@pytest.mark.unit
 class CacheServiceTests(SimpleTestCase):
     @patch("analyzer.services.cache")
     def test_get_or_set_cache_miss(self, mock_cache):
