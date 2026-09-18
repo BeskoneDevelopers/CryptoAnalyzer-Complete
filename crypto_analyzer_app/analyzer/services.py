@@ -67,7 +67,13 @@ def validate_symbol(symbol: str) -> dict[str, Any] | bool:
     return provider(symbol)
 
 
-def add_to_watchlist(user: User, symbol: str, coin_data: dict[str, Any]) -> WatchlistItem:
+def add_to_watchlist(
+    user: User,
+    symbol: str,
+    coin_data: dict[str, Any],
+) -> WatchlistItem:
+    symbol = symbol.strip().upper()
+
     coin, _ = Coin.objects.get_or_create(
         symbol=symbol,
         defaults={"name": coin_data["name"]},
@@ -82,25 +88,32 @@ def add_to_watchlist(user: User, symbol: str, coin_data: dict[str, Any]) -> Watc
 
 
 def remove_from_watchlist(user: User, symbol: str) -> dict[str, Any]:
-    if not symbol or not user:
-        return {"error": "Передана неполная информация"}
+    symbol = symbol.strip().upper()
 
-    delete, _ = WatchlistItem.objects.filter(
+    deleted, _ = WatchlistItem.objects.filter(
         user=user,
         coin__symbol=symbol,
     ).delete()
 
-    if delete:
-        return {"valid": True, "message": "Данные успешно удалены"}
+    if deleted:
+        return {
+            "valid": True,
+            "message": "Данные успешно удалены",
+        }
 
-    return {"valid": False, "message": "Данные не найдены"}
+    return {
+        "valid": False,
+        "message": "Данные не найдены",
+    }
 
 
 def get_watchlist(user: User) -> dict[str, str] | QuerySet[WatchlistItem]:
     if not user:
         return {"error": f"Пользователь {user} не найден"}
 
-    return WatchlistItem.objects.filter(user=user).select_related("coin")
+    return WatchlistItem.objects.filter(
+        user=user,
+    ).select_related("coin")
 
 
 def get_market_stats() -> dict[str, Any]:

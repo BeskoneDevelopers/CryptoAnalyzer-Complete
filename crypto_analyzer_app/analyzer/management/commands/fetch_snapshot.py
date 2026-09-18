@@ -8,7 +8,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--provider", type=str, default="coingecko")
-        parser.add_argument("--limit", type=int, default=100)
+        parser.add_argument("--limit", type=int, default=10)
 
     def handle(self, *args, **options):
         provider = options["provider"]

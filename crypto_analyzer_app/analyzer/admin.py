@@ -17,7 +17,7 @@ class CoinAdmin(admin.ModelAdmin):
 class CoinPriceInline(admin.TabularInline):
     model = CoinPrice
     extra = 1
-    fields = ["coin", "price", "volume_24h", "change_24h"]
+    fields = ["coin", "price", "volume_24h", "change_24h", "market_cap"]
 
 
 @admin.register(Snapshot)
@@ -28,5 +28,5 @@ class SnapshotAdmin(admin.ModelAdmin):
 
 @admin.register(CoinPrice)
 class CoinPriceAdmin(admin.ModelAdmin):
-    list_display = ("coin", "snapshot", "price", "volume_24h", "change_24h")
+    list_display = ("coin", "snapshot", "price", "volume_24h", "change_24h", "market_cap")
     list_filter = ["snapshot", "coin"]

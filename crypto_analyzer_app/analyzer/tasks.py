@@ -70,6 +70,7 @@ def _fetch_coinmarketcap(limit: int):
                     "current_price": item["quote"]["USD"]["price"],
                     "total_volume": item["quote"]["USD"]["volume_24h"],
                     "price_change_percentage_24h": item["quote"]["USD"]["percent_change_24h"],
+                    "market_cap": item["quote"]["USD"]["market_cap"],
                 }
             )
 
@@ -103,17 +104,30 @@ def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
     for coin_data in coins_data:
         name = coin_data.get("name")
         symbol = coin_data.get("symbol")
-        current_price = coin_data.get("current_price", 0)
-        volume = coin_data.get("total_volume", 0)
-        change = coin_data.get("price_change_percentage_24h", 0)
+        current_price = coin_data.get("current_price")
+        volume = coin_data.get("total_volume")
+        change = coin_data.get("price_change_percentage_24h")
+        market_cap = coin_data.get("market_cap")
 
-        coin, created = Coin.objects.get_or_create(symbol=symbol, defaults={"name": name})
-
-        CoinPrice.objects.create(
-            coin=coin, snapshot=snapshot, price=current_price or 0, volume_24h=volume or 0, change_24h=change or 0
+        coin, _ = Coin.objects.get_or_create(
+            symbol=symbol,
+            defaults={"name": name},
         )
 
-    total_market_cap = CoinPrice.objects.filter(snapshot=snapshot).aggregate(total=Sum("price"))["total"] or 0
+        CoinPrice.objects.create(
+            coin=coin,
+            snapshot=snapshot,
+            price=current_price,
+            volume_24h=volume,
+            change_24h=change,
+            market_cap=market_cap,
+        )
+
+    total_market_cap = CoinPrice.objects.filter(snapshot=snapshot).aggregate(total=Sum("market_cap"))["total"] or 0
+
     snapshot.total_market_cap = total_market_cap
     snapshot.save()
-    return {"snapshot_id": snapshot.pk, "total_coins": snapshot.total_coins}
+    return {
+        "snapshot_id": snapshot.pk,
+        "total_coins": snapshot.total_coins,
+    }
