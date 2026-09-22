@@ -193,28 +193,24 @@ def get_cached_market_stats(force_refresh: bool = False) -> dict[str, Any]:
     )
 
 
-def get_serialized_top_movers() -> Any:
+def _serialize_analytics(loader: Callable[[], Any]) -> Any:
     from .serializer import CoinPriceAnalyticSerializer
 
-    movers = get_top_movers()
+    data = loader()
 
-    if isinstance(movers, dict) and "error" in movers:
-        return movers
+    if isinstance(data, dict) and "error" in data:
+        return data
 
-    serializer = CoinPriceAnalyticSerializer(movers, many=True)
+    serializer = CoinPriceAnalyticSerializer(data, many=True)
     return serializer.data
+
+
+def get_serialized_top_movers() -> Any:
+    return _serialize_analytics(get_top_movers)
 
 
 def get_serialized_top_volume() -> Any:
-    from .serializer import CoinPriceAnalyticSerializer
-
-    volume = get_top_volume()
-
-    if isinstance(volume, dict) and "error" in volume:
-        return volume
-
-    serializer = CoinPriceAnalyticSerializer(volume, many=True)
-    return serializer.data
+    return _serialize_analytics(get_top_volume)
 
 
 def get_cached_top_movers(force_refresh: bool = False) -> Any:
