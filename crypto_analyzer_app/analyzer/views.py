@@ -47,7 +47,7 @@ class SnapshotViewSet(ReadOnlyModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     queryset = Snapshot.objects.prefetch_related("coin_prices").all()
     serializer_class = SnapshotSerializer
-    filter_backends = [OrderingFilter]
+    filter_backends = (OrderingFilter,)
     ordering_fields = ["created_at", "total_market_cap"]
     ordering = ["-created_at"]
 
@@ -81,7 +81,7 @@ class CoinViewSet(ReadOnlyModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     queryset = Coin.objects.prefetch_related("prices").order_by("id")
     serializer_class = CoinSerializer
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = (DjangoFilterBackend, SearchFilter)
     filterset_class = CoinFilter
     search_fields = ["symbol", "name"]
 
@@ -100,9 +100,7 @@ class CoinViewSet(ReadOnlyModelViewSet):
 
 class WatchlistViewSet(ModelViewSet):
     tags = ["Watchlist"]
-    permission_classes = [
-        IsAuthenticated,
-    ]
+    permission_classes = (IsAuthenticated,)
 
     def get_serializer_class(self) -> type[BaseSerializer]:
         if self.action in ("create", "delete_watchlist"):
