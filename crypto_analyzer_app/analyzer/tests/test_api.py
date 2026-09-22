@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import reset_queries
 from django.http import Http404
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from rest_framework.exceptions import (
     MethodNotAllowed,
     NotAuthenticated,
@@ -844,7 +844,7 @@ class PortfolioAPITest(TestCase):
 
 
 @pytest.mark.unit
-class AnyTests(TestCase):
+class AnyTests(SimpleTestCase):
     def test_custom_exception_handler_handles_django_http404(self):
         response = custom_exception_handler(Http404(), {})
 
@@ -906,6 +906,9 @@ class AnyTests(TestCase):
         assert response.data["error"] == "Превышен лимит запросов"
         assert response["Retry-After"] == "60"
 
+
+@pytest.mark.integration
+class JWTIntegrationTest(TestCase):
     def test_refresh_token_cannot_be_reused_after_rotation(self):
         user = User.objects.create_user(
             username="jwt_user",
