@@ -1,15 +1,23 @@
-from rest_framework.decorators import action
-from  rest_framework.response import Response
 from django_filters import rest_framework as filters
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
-from rest_framework.permissions import IsAuthenticated
-
-from .models import Snapshot, Coin, WatchlistItem
-from .serializer import SnapshotSerializer, CoinSerializer, CoinFilter, WatchlistInputSerializer, WatchlistOutputSerializer, CoinPriceAnalyticSerializer
-from .services import remove_from_watchlist, get_market_stats, get_top_movers, get_top_volume
+from .models import Coin, Snapshot, WatchlistItem
+from .serializer import (
+    CoinFilter,
+    CoinPriceAnalyticSerializer,
+    CoinSerializer,
+    SnapshotSerializer,
+    WatchlistInputSerializer,
+    WatchlistOutputSerializer,
+)
+from .services import (
+    get_market_stats,
+    remove_from_watchlist,
+)
 from .tasks import fetch_snapshot_task
 
 
@@ -25,12 +33,12 @@ class CoinViewSet(ReadOnlyModelViewSet):
         .order_by("id")
     )
     serializer_class = CoinSerializer
-    filter_backends = [filters.DjangoFilterBackend]
+    filter_backends = (filters.DjangoFilterBackend,)
     filterset_class = CoinFilter
 
 
 class WatchlistViewSet(ModelViewSet):
-    permission_classes = [IsAuthenticated,]
+    permission_classes = (IsAuthenticated,)
 
     def get_serializer_class(self):
         if self.action in ("create", "delete_watchlist"):
@@ -81,15 +89,6 @@ class TopAnalyticsView(APIView):
         return Response(serializer.data)
 
 
-class VolumeTopView(APIView):
-    def get(self, request):
-        toper = get_top_volume()
-        if isinstance(toper, dict) and "error" in toper:
-            return Response(toper, status=404)
-
-        serializer = CoinPriceAnalyticSerializer(toper, many=True)
-        return Response(serializer.data)
-
 class StartSnapshotTaskView(APIView):
     def post(self, request):
         provider = request.data.get("provider", "coingecko")
@@ -101,6 +100,7 @@ class StartSnapshotTaskView(APIView):
             {"task_id": task.id},
             status=202,
         )
+
 
 class TaskStatusView(APIView):
     def get(self, request, task_id):
