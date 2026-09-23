@@ -3,7 +3,7 @@ from .models import Coin, CoinPrice, Snapshot, WatchlistItem
 
 from django_filters import rest_framework as filters
 
-from .services import validate_symbol as service_validate_symbol, add_to_watchlist
+from .services import (validate_symbol as service_validate_symbol,add_to_watchlist,get_latest_snapshot)
 
 class CoinFilter(filters.FilterSet):
     symbol = filters.CharFilter(lookup_expr="iexact")
@@ -24,7 +24,7 @@ class CoinFilter(filters.FilterSet):
 
     def _latest_coin_ids(self, price_lookup):
         if not hasattr(self, "snapshot"):
-            self.snapshot = Snapshot.objects.last()
+            self.snapshot = get_latest_snapshot()
 
         if not self.snapshot:
             return Coin.objects.none()

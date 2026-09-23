@@ -117,8 +117,11 @@ def get_watchlist(user):
         user=user
     ).select_related("coin")
 
+def get_latest_snapshot():
+    return Snapshot.objects.order_by("-created_at").first()
+
 def get_market_stats():
-    last = Snapshot.objects.last()
+    last = get_latest_snapshot()
     if not last:
         return {"error": "Снимков нет!"}
 
@@ -146,7 +149,7 @@ def get_toper(sort_field, limit=10):
     if not filt:
         raise ValueError("Неверное поле сортировки")
 
-    last = Snapshot.objects.last()
+    last = get_latest_snapshot()
     if not last:
         return {"error": "Снимков нет!"}
 
@@ -164,3 +167,4 @@ def get_top_movers(limit=10):
 
 def get_top_volume(limit=10):
     return get_toper("volume", limit)
+
