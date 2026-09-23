@@ -207,12 +207,7 @@ class TopMoversView(TopAnalyticsView):
         },
     )
     def get(self, request: Request, version: str | None = None) -> Response:
-        data = get_cached_top_movers()
-
-        if isinstance(data, dict) and "error" in data:
-            raise NotFound("Снимков нет")
-
-        return Response(data)
+        return super().get(request, version)
 
 
 class VolumeTopView(TopAnalyticsView):
@@ -228,12 +223,7 @@ class VolumeTopView(TopAnalyticsView):
         },
     )
     def get(self, request: Request, version: str | None = None) -> Response:
-        data = get_cached_top_volume()
-
-        if isinstance(data, dict) and "error" in data:
-            raise NotFound("Снимков нет")
-
-        return Response(data)
+        return super().get(request, version)
 
 
 class StartSnapshotTaskView(APIView):
@@ -298,8 +288,8 @@ class PortfolioListView(ListAPIView):
 
         try:
             context["prices"] = get_latest_prices(coin_ids)
-        except ValueError as exc:
-            raise NotFound(str(exc)) from None
+        except Snapshot.DoesNotExist:
+            raise NotFound("Снимок рынка не найден") from None
 
         return context
 
@@ -369,6 +359,8 @@ class PortfolioSummaryView(APIView):
             result = PortfolioService.get_summary(
                 user=request.user,
             )
+        except Snapshot.DoesNotExist:
+            raise NotFound("Снимок рынка не найден") from None
         except ValueError as exc:
             raise ValidationError(str(exc)) from None
 

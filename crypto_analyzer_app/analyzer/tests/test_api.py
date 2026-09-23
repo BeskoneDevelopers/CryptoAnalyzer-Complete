@@ -472,8 +472,14 @@ class PortfolioAPITest(TestCase):
         self.assertEqual(position["symbol"], "BTC")
         self.assertEqual(position["amount"], "1.500000000000")
         self.assertEqual(position["buy_price"], "40000.000000000000")
-        self.assertEqual(position["current_price"], 50000.0)
-        self.assertEqual(position["current_value"], 75000.0)
+        self.assertEqual(
+            position["current_price"],
+            "50000.00000000",
+        )
+        self.assertEqual(
+            position["current_value"],
+            "75000.000000000000",
+        )
 
     def test_buy_success(self):
         response = self.client.post(
@@ -827,6 +833,17 @@ class PortfolioAPITest(TestCase):
         self.assertIsNone(ethereum["current_price"])
         self.assertIsNone(ethereum["current_value"])
 
+    def test_portfolio_without_snapshot(self):
+        Snapshot.objects.all().delete()
+
+        response = self.client.get(
+            "/api/v1/portfolio/",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["code"], "not_found")
+
     def test_summary_without_snapshot(self):
         Snapshot.objects.all().delete()
 
@@ -835,8 +852,8 @@ class PortfolioAPITest(TestCase):
             HTTP_AUTHORIZATION=self.auth_header,
         )
 
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["code"], "validation_error")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["code"], "not_found")
 
     def test_summary_without_balance(self):
         self.balance.delete()

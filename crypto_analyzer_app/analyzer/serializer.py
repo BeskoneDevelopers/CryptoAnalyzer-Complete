@@ -126,12 +126,45 @@ class CoinPriceAnalyticSerializer(serializers.ModelSerializer):
 class PortfolioSerializer(serializers.ModelSerializer):
     coin = serializers.SerializerMethodField()
     symbol = serializers.SerializerMethodField()
-    current_price = serializers.SerializerMethodField()
-    current_value = serializers.SerializerMethodField()
+
+    current_price = serializers.DecimalField(
+        max_digits=24,
+        decimal_places=8,
+        allow_null=True,
+        read_only=True,
+    )
+    current_value = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+        allow_null=True,
+        read_only=True,
+    )
 
     class Meta:
         model = Portfolio
-        fields = ["coin", "symbol", "amount", "buy_price", "current_price", "current_value"]
+        fields = [
+            "coin",
+            "symbol",
+            "amount",
+            "buy_price",
+            "current_price",
+            "current_value",
+        ]
+
+    def to_representation(self, instance: Portfolio) -> dict[str, Any]:
+        prices = self.context.get("prices", {})
+        current_price = prices.get(instance.coin_id)
+
+        setattr(instance, "current_price", current_price)
+
+        if current_price is None:
+            current_value = None
+        else:
+            current_value = instance.amount * current_price
+
+        setattr(instance, "current_value", current_value)
+
+        return super().to_representation(instance)
 
     def get_coin(self, obj: Portfolio) -> str:
         return obj.coin.name
@@ -139,32 +172,22 @@ class PortfolioSerializer(serializers.ModelSerializer):
     def get_symbol(self, obj: Portfolio) -> str:
         return obj.coin.symbol.upper()
 
-    def _get_current_price(self, obj: Portfolio) -> Decimal | None:
-        prices = self.context.get("prices", {})
-        return prices.get(obj.coin_id)
-
-    def get_current_price(self, obj: Portfolio) -> Decimal | None:
-        return self._get_current_price(obj)
-
-    def get_current_value(self, obj: Portfolio) -> Decimal | None:
-        price = self._get_current_price(obj)
-
-        if price is None:
-            return None
-
-        return obj.amount * price
-
 
 class PortfolioBuySerializer(serializers.Serializer):
-    coin = serializers.PrimaryKeyRelatedField(queryset=Coin.objects.all())
+    coin = serializers.PrimaryKeyRelatedField(
+        queryset=Coin.objects.all(),
+    )
     amount = serializers.DecimalField(
         max_digits=24,
         decimal_places=12,
+        min_value=Decimal("0.000000000001"),
     )
 
 
 class PortfolioSellSerializer(serializers.Serializer):
-    coin = serializers.PrimaryKeyRelatedField(queryset=Coin.objects.all())
+    coin = serializers.PrimaryKeyRelatedField(
+        queryset=Coin.objects.all(),
+    )
     amount = serializers.DecimalField(
         max_digits=24,
         decimal_places=12,

@@ -8,9 +8,7 @@ from django.db import transaction
 
 class PortfolioService:
     @staticmethod
-    def buy(user: User, coin: Coin, amount: Decimal):
-        if amount <= 0:
-            raise ValueError("Неверно указано количество")
+    def buy(user: User, coin: Coin, amount: Decimal) -> dict[str, str]:
         with transaction.atomic():
             try:
                 balance = Balance.objects.select_for_update().get(user=user)
@@ -38,9 +36,7 @@ class PortfolioService:
         return {"successful": "Операция прошла успешно"}
 
     @staticmethod
-    def sell(user: User, coin: Coin, amount: Decimal):
-        if amount <= 0:
-            raise ValueError("Неверно указано количество")
+    def sell(user: User, coin: Coin, amount: Decimal) -> dict[str, str]:
         with transaction.atomic():
             try:
                 balance = Balance.objects.select_for_update().get(user=user)
@@ -70,7 +66,7 @@ class PortfolioService:
         return {"successful": "Операция прошла успешно"}
 
     @staticmethod
-    def get_summary(user: User):
+    def get_summary(user: User) -> dict[str, Decimal | None]:
         with transaction.atomic():
             try:
                 balance = Balance.objects.select_for_update().get(user=user)

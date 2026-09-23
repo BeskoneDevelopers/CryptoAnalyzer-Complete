@@ -194,10 +194,7 @@ def get_latest_price(coin: Coin) -> Decimal:
 
 
 def get_latest_prices(coin_ids: Iterable[int]) -> dict[int, Decimal]:
-    latest_snapshot = Snapshot.objects.order_by("-created_at").first()
-
-    if latest_snapshot is None:
-        raise ValueError("Снимок рынка не найден")
+    latest_snapshot = Snapshot.objects.latest("created_at")
 
     prices = CoinPrice.objects.filter(
         snapshot=latest_snapshot,

@@ -128,6 +128,38 @@ class PortfolioServiceTestCase(TestCase):
         "atomic_tasks.services.get_latest_price",
         return_value=Decimal("50000"),
     )
+    def test_sell_full_position(self, mock_price):
+        Portfolio.objects.create(
+            user=self.user,
+            coin=self.coin,
+            amount=Decimal("1"),
+            buy_price=Decimal("40000"),
+        )
+
+        PortfolioService.sell(
+            user=self.user,
+            coin=self.coin,
+            amount=Decimal("1"),
+        )
+
+        self.balance.refresh_from_db()
+
+        self.assertEqual(
+            self.balance.amount,
+            Decimal("150000"),
+        )
+
+        self.assertFalse(
+            Portfolio.objects.filter(
+                user=self.user,
+                coin=self.coin,
+            ).exists()
+        )
+
+    @patch(
+        "atomic_tasks.services.get_latest_price",
+        return_value=Decimal("50000"),
+    )
     def test_sell_insufficient_portfolio_rollback(self, mock_price):
         Portfolio.objects.create(
             user=self.user,
