@@ -22,7 +22,6 @@ drf-spectacular==0.30.0
 djangorestframework==3.18.1
 djangorestframework_simplejwt==5.5.1
 filelock==3.32.6
-gunicorn==26.1.0
 identify==2.6.19
 idna==3.19
 iniconfig==2.3.0
