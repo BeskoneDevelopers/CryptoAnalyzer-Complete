@@ -32,7 +32,7 @@ def _fetch_coingecko(limit: int):
     }
 
     with requests.Session() as session:
-        response = session.get(url, params=params)
+        response = session.get(url, params=params, timeout=10)
         response.raise_for_status()
         raw_data = response.json()
         return raw_data
@@ -58,7 +58,7 @@ def _fetch_coinmarketcap(limit: int):
 
     with requests.Session() as session:
         session.headers.update(header)
-        response = session.get(url, params=params)
+        response = session.get(url, params=params, timeout=10)
         response.raise_for_status()
         raw_data = response.json()
 
@@ -84,8 +84,9 @@ def _get_retry_countdown(retries: int) -> int:
 
 @shared_task(bind=True, max_retries=3)
 def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
+
     if provider == "coinmarketcap" and not settings.CMC_API_KEY:
-        return {"error": "Отсутствует API ключ"}
+        raise ValueError("Отсутствует API ключ")
 
     recent = Snapshot.objects.filter(provider=provider, created_at__gte=timezone.now() - timedelta(minutes=3)).first()
     if recent:
