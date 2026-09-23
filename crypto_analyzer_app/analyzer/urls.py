@@ -1,14 +1,14 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .services import get_top_movers, get_top_volume
 from .views import (
     CoinViewSet,
     MarketStatusView,
     SnapshotViewSet,
     StartSnapshotTaskView,
     TaskStatusView,
-    TopAnalyticsView,
+    TopMoversView,
+    VolumeTopView,
     WatchlistViewSet,
 )
 
@@ -25,12 +25,12 @@ urlpatterns = [
     ),
     path(
         "analytics/top-movers/",
-        TopAnalyticsView.as_view(source=get_top_movers),
+        TopMoversView.as_view(),
         name="top-movers",
     ),
     path(
         "analytics/volume-leaders/",
-        TopAnalyticsView.as_view(source=get_top_volume),
+        VolumeTopView.as_view(),
         name="volume-leaders",
     ),
     path(

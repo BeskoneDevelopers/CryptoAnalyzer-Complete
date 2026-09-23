@@ -218,10 +218,10 @@ class VolumeTopView(TopAnalyticsView):
 
 
 class StartSnapshotTaskView(APIView):
-    tags = ["Tasks"]
     permission_classes = [IsAdminOrReadOnly]
 
     @extend_schema(
+        tags=["Tasks"],
         summary="Запуск сбора снимков",
         request=OpenApiTypes.OBJECT,
         responses={
@@ -243,9 +243,8 @@ class StartSnapshotTaskView(APIView):
 
 
 class TaskStatusView(APIView):
-    tags = ["Tasks"]
-
     @extend_schema(
+        tags=["Tasks"],
         summary="Получить статус задачи",
         responses={
             200: OpenApiResponse(description="Статус задачи: PENDING/SUCCESS/FAILURE"),

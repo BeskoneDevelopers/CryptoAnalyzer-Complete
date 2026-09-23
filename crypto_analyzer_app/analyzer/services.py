@@ -88,6 +88,10 @@ def add_to_watchlist(
 
 
 def remove_from_watchlist(user: User, symbol: str) -> dict[str, Any]:
+
+    if not symbol or not user:
+        return {"error": "Передана неполная информация"}
+
     symbol = symbol.strip().upper()
 
     deleted, _ = WatchlistItem.objects.filter(
@@ -116,14 +120,18 @@ def get_watchlist(user: User) -> dict[str, str] | QuerySet[WatchlistItem]:
     ).select_related("coin")
 
 
+def get_latest_snapshot() -> Snapshot | None:
+    return Snapshot.objects.order_by("-created_at").first()
+
+
 def get_market_stats() -> dict[str, Any]:
-    last = Snapshot.objects.last()
+    last = get_latest_snapshot()
     if not last:
         return {"error": "Снимков нет!"}
 
     status = CoinPrice.objects.filter(snapshot=last).aggregate(min_price=Min("price"), max_price=Max("price"), avg_price=Avg("price"))
 
-    return {"snapshot_id": last.id, "provider": last.provider, "total_market_cap": last.total_market_cap, **status}
+    return {"snapshot_id": last.pk, "provider": last.provider, "total_market_cap": last.total_market_cap, **status}
 
 
 def get_toper(sort_field: str, limit: int = 10) -> dict[str, str] | QuerySet[CoinPrice]:
@@ -136,7 +144,7 @@ def get_toper(sort_field: str, limit: int = 10) -> dict[str, str] | QuerySet[Coi
     if not filt:
         raise ValueError("Неверное поле сортировки")
 
-    last = Snapshot.objects.last()
+    last = get_latest_snapshot()
     if not last:
         return {"error": "Снимков нет!"}
 
