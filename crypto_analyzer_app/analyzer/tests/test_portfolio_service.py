@@ -2,6 +2,7 @@ from decimal import Decimal
 from threading import Barrier, Thread
 from unittest.mock import patch
 
+import pytest
 from atomic_tasks.services import PortfolioService
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections
@@ -12,6 +13,7 @@ from analyzer.models import Balance, Coin, Portfolio
 User = get_user_model()
 
 
+@pytest.mark.integration
 class PortfolioServiceTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -192,6 +194,7 @@ class PortfolioServiceTestCase(TestCase):
         )
 
 
+@pytest.mark.integration
 class PortfolioConcurrentTestCase(TransactionTestCase):
     reset_sequences = True
 

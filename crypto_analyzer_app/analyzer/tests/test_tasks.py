@@ -1,11 +1,13 @@
 from unittest.mock import patch
 
+import pytest
 from django.test import TestCase
 
 from analyzer.models import Coin, CoinPrice, Snapshot
 from analyzer.tasks import fetch_snapshot_task
 
 
+@pytest.mark.integration
 class SnapshotTaskTest(TestCase):
     @patch("analyzer.tasks._fetch_data")
     def test_fetch_snapshot_task(self, mock_fetch):
@@ -21,10 +23,8 @@ class SnapshotTaskTest(TestCase):
 
         result = fetch_snapshot_task.run(provider="test", limit=1)
 
-        # проверяем результат задачи
         self.assertEqual(result["total_coins"], 1)
 
-        # проверяем БД
         self.assertEqual(Snapshot.objects.count(), 1)
 
         self.assertEqual(Coin.objects.count(), 1)

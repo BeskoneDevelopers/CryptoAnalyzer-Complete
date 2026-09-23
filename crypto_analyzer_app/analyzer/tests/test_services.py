@@ -19,6 +19,7 @@ from analyzer.tasks import _get_retry_countdown
 User = get_user_model()
 
 
+@pytest.mark.integration
 class ValidateSymbolTests(TestCase):
     @patch("analyzer.services.requests.Session.get")
     def test_get_validate_symbol(self, mock_get):
@@ -39,6 +40,7 @@ class ValidateSymbolTests(TestCase):
         mock_get.assert_called_once_with("https://api.coingecko.com/api/v3/search?query=ttv")
 
 
+@pytest.mark.integration
 class WatchlistTests(TestCase):
     def test_add_to_watchlist_success(self):
         user = User.objects.create_user(
@@ -115,6 +117,7 @@ class WatchlistTests(TestCase):
         self.assertEqual(post_response.status_code, 401)
 
 
+@pytest.mark.integration
 class CeleryTasksTests(TestCase):
     @patch("analyzer.tasks._fetch_data")
     def test_success(self, mock_fetch):
@@ -267,6 +270,7 @@ class CeleryTasksTests(TestCase):
                 fetch_snapshot_task.run(provider="coinmarketcap")
 
 
+@pytest.mark.unit
 class CacheServiceTests(SimpleTestCase):
     @patch("analyzer.services.cache")
     def test_get_or_set_cache_miss(self, mock_cache):
