@@ -121,12 +121,24 @@ class CeleryTasksTests(TestCase):
         from analyzer.tasks import fetch_snapshot_task
 
         mock_fetch.return_value = [
-            {"name": "Bibicoin", "symbol": "bbc", "current_price": 50000, "total_volume": 100, "price_change_percentage_24h": 5}
+            {
+                "name": "Bibicoin",
+                "symbol": "bbc",
+                "current_price": 50000,
+                "total_volume": 100,
+                "price_change_percentage_24h": 5,
+                "market_cap": 250000,
+            }
         ]
+
         result = fetch_snapshot_task.run("coingecko", 3)
 
-        self.assertEqual(result["snapshot_id"], Snapshot.objects.last().id)
+        self.assertEqual(result["snapshot_id"], Snapshot.objects.first().id)
         self.assertEqual(Snapshot.objects.count(), 1)
+
+        snapshot = Snapshot.objects.first()
+        self.assertEqual(snapshot.total_market_cap, 250000)
+
         self.assertEqual(CoinPrice.objects.count(), 1)
 
         mock_fetch.assert_called_once_with("coingecko", 3)
@@ -174,7 +186,7 @@ class CeleryTasksTests(TestCase):
         ]
         result = fetch_snapshot_task.run("coingecko", 2)
 
-        self.assertEqual(result["snapshot_id"], Snapshot.objects.last().id)
+        self.assertEqual(result["snapshot_id"], Snapshot.objects.first().id)
         self.assertEqual(CoinPrice.objects.count(), 2)
         self.assertEqual(Snapshot.objects.count(), 1)
 
@@ -246,6 +258,13 @@ class CeleryTasksTests(TestCase):
 
         with pytest.raises(ValueError, match="Неизвестный провайдер"):
             fetch_snapshot_task.run(provider="test")
+
+    def test_coinmarketcap_without_api_key(self):
+        from analyzer.tasks import fetch_snapshot_task
+
+        with patch("analyzer.tasks.settings.CMC_API_KEY", None):
+            with self.assertRaisesRegex(ValueError, "Отсутствует API ключ"):
+                fetch_snapshot_task.run(provider="coinmarketcap")
 
 
 class CacheServiceTests(SimpleTestCase):

@@ -191,8 +191,7 @@ class TopAnalyticsView(APIView):
         if isinstance(data, dict) and "error" in data:
             raise NotFound("Снимков нет")
 
-        serializer = CoinPriceAnalyticSerializer(data, many=True)
-        return Response(serializer.data)
+        return Response(data)
 
 
 class TopMoversView(TopAnalyticsView):
@@ -238,10 +237,10 @@ class VolumeTopView(TopAnalyticsView):
 
 
 class StartSnapshotTaskView(APIView):
-    tags = ["Tasks"]
     permission_classes = [IsAdminOrReadOnly]
 
     @extend_schema(
+        tags=["Tasks"],
         summary="Запуск сбора снимков",
         request=OpenApiTypes.OBJECT,
         responses={
@@ -263,9 +262,8 @@ class StartSnapshotTaskView(APIView):
 
 
 class TaskStatusView(APIView):
-    tags = ["Tasks"]
-
     @extend_schema(
+        tags=["Tasks"],
         summary="Получить статус задачи",
         responses={
             200: OpenApiResponse(description="Статус задачи: PENDING/SUCCESS/FAILURE"),

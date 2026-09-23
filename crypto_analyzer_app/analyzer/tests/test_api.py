@@ -160,6 +160,52 @@ class AnalyticsAPITest(TestCase):
         self.assertEqual(response.json()["code"], "not_found")
         self.assertEqual(response.json()["error"], "Запрашиваемый ресурс не найден")
 
+    def test_market_stats_uses_latest_snapshot(self):
+        old_snapshot = Snapshot.objects.create(
+            provider="old",
+            total_coins=1,
+            total_market_cap=100,
+        )
+
+        coin = Coin.objects.create(
+            name="Bitcoin",
+            symbol="btc",
+        )
+
+        CoinPrice.objects.create(
+            coin=coin,
+            snapshot=old_snapshot,
+            price=10,
+            volume_24h=100,
+            change_24h=1,
+        )
+
+        new_snapshot = Snapshot.objects.create(
+            provider="new",
+            total_coins=1,
+            total_market_cap=1000,
+        )
+
+        CoinPrice.objects.create(
+            coin=coin,
+            snapshot=new_snapshot,
+            price=1000,
+            volume_24h=1000,
+            change_24h=10,
+        )
+
+        response = self.client.get("/api/v1/analytics/market-stats/")
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertEqual(data["snapshot_id"], new_snapshot.id)
+        self.assertEqual(data["provider"], "new")
+        self.assertEqual(data["min_price"], 1000.0)
+        self.assertEqual(data["max_price"], 1000.0)
+        self.assertEqual(data["avg_price"], 1000.0)
+
     def test_top_movers(self):
         snapshot = Snapshot.objects.create(provider="test", total_coins=2, total_market_cap=100)
         ntc = Coin.objects.create(name="Nitcoin", symbol="ntc")
@@ -298,7 +344,8 @@ class CeleryAPITest(TestCase):
 
 class ThrottleTests(TestCase):
     def setUp(self):
-        cache.clear()  # сбрасываем счётчики throttle перед каждым тестом
+        cache.clear()
+        self.addCleanup(cache.clear)  # сбрасываем счётчики throttle перед каждым тестом
 
     def test_anon_throttle_5_per_minute(self):
         url = "/api/v1/coins/"
@@ -838,6 +885,10 @@ class PortfolioAPITest(TestCase):
 
 
 class AnyTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+
     def test_custom_exception_handler_handles_django_http404(self):
         response = custom_exception_handler(Http404(), {})
 
@@ -933,3 +984,72 @@ class AnyTests(TestCase):
         )
 
         self.assertEqual(second_refresh.status_code, 401)
+
+    def test_coins_query_count(self):
+        snapshot = Snapshot.objects.create(
+            provider="test",
+            total_coins=3,
+            total_market_cap=1000,
+        )
+
+        for i in range(3):
+            coin = Coin.objects.create(
+                name=f"Coin{i}",
+                symbol=f"coin{i}",
+            )
+
+            CoinPrice.objects.create(
+                coin=coin,
+                snapshot=snapshot,
+                price=100 + i,
+                volume_24h=1000,
+                change_24h=1,
+            )
+
+        with self.assertNumQueries(3):
+            response = self.client.get("/api/v1/coins/")
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_coins_filter_uses_latest_snapshot(self):
+        coin = Coin.objects.create(
+            name="Bitcoin",
+            symbol="btc",
+        )
+
+        old_snapshot = Snapshot.objects.create(
+            provider="old",
+            total_coins=1,
+            total_market_cap=100,
+        )
+
+        CoinPrice.objects.create(
+            coin=coin,
+            snapshot=old_snapshot,
+            price=10,
+            volume_24h=100,
+            change_24h=1,
+        )
+
+        new_snapshot = Snapshot.objects.create(
+            provider="new",
+            total_coins=1,
+            total_market_cap=1000,
+        )
+
+        CoinPrice.objects.create(
+            coin=coin,
+            snapshot=new_snapshot,
+            price=1000,
+            volume_24h=1000,
+            change_24h=10,
+        )
+
+        response = self.client.get("/api/v1/coins/?min_price=500")
+
+        self.assertEqual(response.status_code, 200)
+
+        results = response.json()["results"]
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["symbol"], "btc")
