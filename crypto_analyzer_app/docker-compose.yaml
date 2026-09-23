@@ -75,6 +75,29 @@ services:
     depends_on:
       - web
 
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9099:9090"
+    depends_on:
+      - web
+
+  grafana:
+    image: grafana/grafana:13.2.2
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
   staticfiles:
+  prometheus_data:
+  grafana_data:
