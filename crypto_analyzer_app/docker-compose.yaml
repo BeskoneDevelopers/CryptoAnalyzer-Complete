@@ -9,20 +9,17 @@ x-app-environment: &app-environment
 services:
   db:
     image: postgres:17
-
     command:
       - postgres
       - -c
       - shared_preload_libraries=pg_stat_statements
-
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-crypto_analyzer_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -38,10 +35,8 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn crypto_analyzer_app.wsgi:application --bind 0.0.0.0:8000"
-
+             gunicorn crypto_analyzer_app.wsgi:application --workers 2 --bind 0.0.0.0:8000"
     environment: *app-environment
-
     depends_on:
       db:
         condition: service_healthy
@@ -80,18 +75,6 @@ services:
     depends_on:
       - web
 
-  prometheus:
-    image: prom/prometheus:latest
-
-    volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    ports:
-      - "9099:9090"
-    depends_on:
-      - web
-
 volumes:
   postgres_data:
   staticfiles:
-  prometheus_data:

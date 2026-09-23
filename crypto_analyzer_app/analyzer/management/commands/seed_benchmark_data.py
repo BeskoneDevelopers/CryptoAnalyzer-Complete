@@ -5,6 +5,9 @@ from django.db import transaction
 
 from analyzer.models import Coin, CoinPrice, Snapshot
 
+BENCHMARK_COINS_COUNT = 100
+BENCHMARK_SNAPSHOTS_COUNT = 500
+
 
 class Command(BaseCommand):
     help = "Заполняет таблицы тестовыми данными"
@@ -17,7 +20,7 @@ class Command(BaseCommand):
 
     def _create_coins(self):
         create_count = 0
-        for i in range(1, 101):
+        for i in range(1, BENCHMARK_COINS_COUNT + 1):
             name = f"BC_{i}"
             symbol = name
             _, created = Coin.objects.get_or_create(symbol=symbol, defaults={"name": name})
@@ -29,18 +32,12 @@ class Command(BaseCommand):
 
     def _create_snapshots(self):
         provider = "benchmark"
-        total_coins = 100
+        total_coins = BENCHMARK_COINS_COUNT
         total_market_cap = Decimal("1000.0")
         snapshots = []
 
-        count_point = Snapshot.objects.filter(provider=provider).count()
-
-        if count_point == 500:
-            self.stdout.write("Таблица заполнена")
-            return
-
         Snapshot.objects.filter(provider=provider).delete()
-        for _ in range(500):
+        for _ in range(BENCHMARK_SNAPSHOTS_COUNT):
             snapshots.append(
                 Snapshot(
                     provider=provider,

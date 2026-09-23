@@ -61,7 +61,12 @@ class WatchlistItem(models.Model):
 
 
 class Balance(models.Model):
-    user: models.ForeignKey = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="user_balance")
+    user: models.ForeignKey = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="user_balance",
+        db_index=False,
+    )
     amount: models.DecimalField = models.DecimalField(max_digits=24, decimal_places=12)
 
     class Meta:
