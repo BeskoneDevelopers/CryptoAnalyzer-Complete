@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 
@@ -350,3 +351,11 @@ class CacheServiceTests(SimpleTestCase):
         mock_market_stats.assert_called_once_with(force_refresh=True)
         mock_top_movers.assert_called_once_with(force_refresh=True)
         mock_top_volume.assert_called_once_with(force_refresh=True)
+
+    def test_analytics_cache_ttl_exceeds_beat_interval(self):
+        beat_interval = settings.CELERY_BEAT_SCHEDULE["fetch-snapshot-every-hour"]["schedule"]
+
+        self.assertGreater(
+            ANALYTICS_CACHE_TTL,
+            beat_interval,
+        )
