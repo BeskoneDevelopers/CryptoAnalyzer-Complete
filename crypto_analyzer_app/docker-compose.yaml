@@ -5,6 +5,8 @@ x-app-environment: &app-environment
   DB_HOST: db
   DB_PORT: "5432"
   REDIS_HOST: redis
+  LOGSTASH_HOST: logstash
+  LOGSTASH_PORT: "5000"
 
 services:
   db:
@@ -98,8 +100,48 @@ services:
     depends_on:
       - prometheus
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.4
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:9.5.4
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./docker/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.5.4
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+
+
 volumes:
   postgres_data:
   staticfiles:
   prometheus_data:
   grafana_data:
+  elasticsearch_data:

@@ -1,8 +1,9 @@
 from collections.abc import Callable, Iterable
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 import requests
+import structlog
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -17,7 +18,7 @@ TOP_MOVERS_CACHE_KEY = "top_movers"
 VOLUME_LEADERS_CACHE_KEY = "volume_leaders"
 
 
-def get_provider() -> Callable[[str], dict[str, Any] | bool]:
+def get_provider() -> Callable[[str], dict[str, Any] | Literal[False]]:
     if settings.EXCHANGE_PROVIDER == "coingecko":
         return validate_symbol_coingecko
 
@@ -27,7 +28,7 @@ def get_provider() -> Callable[[str], dict[str, Any] | bool]:
     raise ValueError(f"Неизвестный провайдер: {settings.EXCHANGE_PROVIDER}")
 
 
-def validate_symbol_coingecko(symbol: str) -> dict[str, Any] | bool:
+def validate_symbol_coingecko(symbol: str) -> dict[str, Any] | Literal[False]:
     search_symbol = f"https://api.coingecko.com/api/v3/search?query={symbol}"
 
     with requests.Session() as session:
@@ -42,7 +43,7 @@ def validate_symbol_coingecko(symbol: str) -> dict[str, Any] | bool:
     return False
 
 
-def validate_symbol_coinmarketcap(symbol: str) -> dict[str, Any] | bool:
+def validate_symbol_coinmarketcap(symbol: str) -> dict[str, Any] | Literal[False]:
     api_key = settings.CMC_API_KEY
     if not api_key:
         raise ValueError("Отсутствует API ключ CoinMarketCap")
@@ -70,9 +71,23 @@ def validate_symbol_coinmarketcap(symbol: str) -> dict[str, Any] | bool:
     return False
 
 
-def validate_symbol(symbol: str) -> dict[str, Any] | bool:
-    provider = get_provider()
-    return provider(symbol)
+logger = structlog.get_logger(__name__)
+
+
+def validate_symbol(symbol: str) -> dict[str, Any] | Literal[False]:
+    try:
+        provider = get_provider()
+        result = provider(symbol)
+    except Exception as e:
+        logger.error("validate_symbol_failed", symbol=symbol, provider=settings.EXCHANGE_PROVIDER, error=str(e))
+        raise
+
+    if result is False:
+        logger.warning("symbol_invalid", symbol=symbol, provider=settings.EXCHANGE_PROVIDER)
+        return False
+
+    logger.info("symbol_validated", symbol=symbol, provider=settings.EXCHANGE_PROVIDER, coin_name=result.get("name"))
+    return result
 
 
 def add_to_watchlist(

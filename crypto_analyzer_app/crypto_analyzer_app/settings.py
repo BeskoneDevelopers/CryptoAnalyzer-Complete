@@ -15,6 +15,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import structlog
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -229,6 +230,41 @@ STORAGES = {
     },
 }
 
+LOGSTASH_HOST = os.getenv("LOGSTASH_HOST", "localhost")
+LOGSTASH_PORT = int(os.getenv("LOGSTASH_PORT", "5000"))
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": structlog.stdlib.ProcessorFormatter,
+            "processors": [structlog.stdlib.ProcessorFormatter.remove_processors_meta, structlog.processors.JSONRenderer()],
+        }
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "json"},
+        "logstash": {
+            "class": "logstash_async.handler.AsynchronousLogstashHandler",
+            "formatter": "json",
+            "host": LOGSTASH_HOST,
+            "port": LOGSTASH_PORT,
+            "database_path": None,
+            "transport": "logstash_async.transport.TcpTransport",
+            "ssl_enable": False,
+        },
+    },
+    "root": {"handlers": ["console", "logstash"], "level": "INFO"},
+}
+
+structlog.configure(
+    processors=[
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+    ],
+    logger_factory=structlog.stdlib.LoggerFactory(),
+)
 
 EXCHANGE_PROVIDER = os.getenv("EXCHANGE_PROVIDER", "coingecko")
 
