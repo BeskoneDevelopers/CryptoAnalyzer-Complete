@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db.models import Avg, Max, Min, QuerySet
 
+from .metrics import crypto_cache_total
 from .models import Coin, CoinPrice, Snapshot, WatchlistItem
 
 ANALYTICS_CACHE_TTL = 4200
@@ -207,12 +208,18 @@ def get_or_set_cache(
     cache_key: str,
     loader: Callable[[], Any],
     *,
+    key_prefix: str,
     force_refresh: bool = False,
 ) -> Any:
+
     if not force_refresh:
         cached = cache.get(cache_key)
+
         if cached is not None:
+            crypto_cache_total.labels(key_prefix=key_prefix, result="hit").inc()
             return cached
+
+        crypto_cache_total.labels(key_prefix=key_prefix, result="miss").inc()
 
     data = loader()
 
@@ -227,6 +234,7 @@ def get_cached_market_stats(force_refresh: bool = False) -> dict[str, Any]:
     return get_or_set_cache(
         MARKET_STATS_CACHE_KEY,
         get_market_stats,
+        key_prefix="market_stats",
         force_refresh=force_refresh,
     )
 
@@ -255,6 +263,7 @@ def get_cached_top_movers(force_refresh: bool = False) -> Any:
     return get_or_set_cache(
         TOP_MOVERS_CACHE_KEY,
         get_serialized_top_movers,
+        key_prefix="top_movers",
         force_refresh=force_refresh,
     )
 
@@ -263,6 +272,7 @@ def get_cached_top_volume(force_refresh: bool = False) -> Any:
     return get_or_set_cache(
         VOLUME_LEADERS_CACHE_KEY,
         get_serialized_top_volume,
+        key_prefix="top_volume",
         force_refresh=force_refresh,
     )
 
