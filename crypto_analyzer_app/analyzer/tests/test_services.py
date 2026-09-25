@@ -61,7 +61,7 @@ class WatchlistTests(TestCase):
 
     def test_coin_endpoint_is_read_only(self):
         response = self.client.post(
-            "/api/coins/",
+            "/api/v1/coins/",
             {
                 "name": "Bitcoin",
                 "symbol": "BTC",
@@ -69,7 +69,7 @@ class WatchlistTests(TestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.status_code, 401)
 
     def test_snapshot_endpoint_is_read_only(self):
         coin = Coin.objects.create(
@@ -92,11 +92,11 @@ class WatchlistTests(TestCase):
             market_cap="5000.00",
         )
 
-        get_response = self.client.get("/api/snapshots/")
+        get_response = self.client.get("/api/v1/snapshots/")
         self.assertEqual(get_response.status_code, 200)
 
         post_response = self.client.post(
-            "/api/snapshots/",
+            "/api/v1/snapshots/",
             {
                 "provider": "test",
                 "total_coins": 1,
@@ -105,7 +105,7 @@ class WatchlistTests(TestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(post_response.status_code, 405)
+        self.assertEqual(post_response.status_code, 401)
 
 
 class CeleryTasksTests(TestCase):

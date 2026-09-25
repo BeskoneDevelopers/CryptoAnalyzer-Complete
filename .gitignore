@@ -21,7 +21,8 @@ ENV/
 *.log
 db.sqlite3
 /media/
-/staticfiles/
+staticfiles/
+celerybeat-schedule
 
 # IDE
 .idea/
