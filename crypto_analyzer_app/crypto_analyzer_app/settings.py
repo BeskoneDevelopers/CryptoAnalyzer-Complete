@@ -15,8 +15,11 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import sentry_sdk
 import structlog
+from django.http import Http404
 from dotenv import load_dotenv
+from rest_framework.exceptions import NotFound, Throttled
 
 load_dotenv()
 CMC_API_KEY = os.getenv("CMC_API_KEY")
@@ -230,6 +233,8 @@ STORAGES = {
     },
 }
 
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+
 LOGSTASH_HOST = os.getenv("LOGSTASH_HOST", "localhost")
 LOGSTASH_PORT = int(os.getenv("LOGSTASH_PORT", "5000"))
 
@@ -265,6 +270,11 @@ structlog.configure(
     ],
     logger_factory=structlog.stdlib.LoggerFactory(),
 )
+
+SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+if SENTRY_DSN:
+    sentry_sdk.init(dsn=SENTRY_DSN, ignore_errors=[Http404, NotFound, Throttled])
+
 
 EXCHANGE_PROVIDER = os.getenv("EXCHANGE_PROVIDER", "coingecko")
 

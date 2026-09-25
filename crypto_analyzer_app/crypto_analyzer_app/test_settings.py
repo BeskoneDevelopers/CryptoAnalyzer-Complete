@@ -1,3 +1,7 @@
+import os
+
+os.environ["SENTRY_DSN"] = ""
+
 from .settings import *  # noqa: F403
 
 CACHES = {
