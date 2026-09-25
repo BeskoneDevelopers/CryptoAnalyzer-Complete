@@ -7,6 +7,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from analyzer.models import Coin, CoinPrice, Snapshot
+from analyzer.services import refresh_analytics_cache
 
 
 def _fetch_data(provider, limit):
@@ -128,6 +129,9 @@ def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
 
     snapshot.total_market_cap = total_market_cap
     snapshot.save()
+
+    refresh_analytics_cache()
+
     return {
         "snapshot_id": snapshot.pk,
         "total_coins": snapshot.total_coins,

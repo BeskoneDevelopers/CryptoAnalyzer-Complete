@@ -4,9 +4,15 @@ from typing import Any
 import requests
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.db.models import Avg, Max, Min, QuerySet
 
 from .models import Coin, CoinPrice, Snapshot, WatchlistItem
+
+ANALYTICS_CACHE_TTL = 4200
+MARKET_STATS_CACHE_KEY = "market_stats"
+TOP_MOVERS_CACHE_KEY = "top_movers"
+VOLUME_LEADERS_CACHE_KEY = "volume_leaders"
 
 
 def get_provider() -> Callable[[str], dict[str, Any] | bool]:
@@ -88,7 +94,6 @@ def add_to_watchlist(
 
 
 def remove_from_watchlist(user: User, symbol: str) -> dict[str, Any]:
-
     if not symbol or not user:
         return {"error": "Передана неполная информация"}
 
@@ -129,9 +134,17 @@ def get_market_stats() -> dict[str, Any]:
     if not last:
         return {"error": "Снимков нет!"}
 
-    status = CoinPrice.objects.filter(snapshot=last).aggregate(min_price=Min("price"), max_price=Max("price"), avg_price=Avg("price"))
-
-    return {"snapshot_id": last.pk, "provider": last.provider, "total_market_cap": last.total_market_cap, **status}
+    status = CoinPrice.objects.filter(snapshot=last).aggregate(
+        min_price=Min("price"),
+        max_price=Max("price"),
+        avg_price=Avg("price"),
+    )
+    return {
+        "snapshot_id": last.pk,
+        "provider": last.provider,
+        "total_market_cap": last.total_market_cap,
+        **status,
+    }
 
 
 def get_toper(sort_field: str, limit: int = 10) -> dict[str, str] | QuerySet[CoinPrice]:
@@ -157,3 +170,73 @@ def get_top_movers(limit: int = 10) -> dict[str, str] | QuerySet[CoinPrice]:
 
 def get_top_volume(limit: int = 10) -> dict[str, str] | QuerySet[CoinPrice]:
     return get_toper("volume", limit)
+
+
+def get_or_set_cache(
+    cache_key: str,
+    loader: Callable[[], Any],
+    *,
+    force_refresh: bool = False,
+) -> Any:
+    if not force_refresh:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+    data = loader()
+
+    if isinstance(data, dict) and "error" in data:
+        return data
+
+    cache.set(cache_key, data, ANALYTICS_CACHE_TTL)
+    return data
+
+
+def get_cached_market_stats(force_refresh: bool = False) -> dict[str, Any]:
+    return get_or_set_cache(
+        MARKET_STATS_CACHE_KEY,
+        get_market_stats,
+        force_refresh=force_refresh,
+    )
+
+
+def _serialize_analytics(loader: Callable[[], Any]) -> Any:
+    from .serializer import CoinPriceAnalyticSerializer
+
+    data = loader()
+
+    if isinstance(data, dict) and "error" in data:
+        return data
+
+    serializer = CoinPriceAnalyticSerializer(data, many=True)
+    return serializer.data
+
+
+def get_serialized_top_movers() -> Any:
+    return _serialize_analytics(get_top_movers)
+
+
+def get_serialized_top_volume() -> Any:
+    return _serialize_analytics(get_top_volume)
+
+
+def get_cached_top_movers(force_refresh: bool = False) -> Any:
+    return get_or_set_cache(
+        TOP_MOVERS_CACHE_KEY,
+        get_serialized_top_movers,
+        force_refresh=force_refresh,
+    )
+
+
+def get_cached_top_volume(force_refresh: bool = False) -> Any:
+    return get_or_set_cache(
+        VOLUME_LEADERS_CACHE_KEY,
+        get_serialized_top_volume,
+        force_refresh=force_refresh,
+    )
+
+
+def refresh_analytics_cache() -> None:
+    get_cached_market_stats(force_refresh=True)
+    get_cached_top_movers(force_refresh=True)
+    get_cached_top_volume(force_refresh=True)
