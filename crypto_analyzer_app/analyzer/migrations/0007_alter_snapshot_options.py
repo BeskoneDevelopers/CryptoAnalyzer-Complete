@@ -4,14 +4,13 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('analyzer', '0006_alter_coinprice_snapshot'),
+        ("analyzer", "0006_alter_coinprice_snapshot"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='snapshot',
-            options={'ordering': ['-created_at'], 'verbose_name_plural': 'snapshots'},
+            name="snapshot",
+            options={"ordering": ["-created_at"], "verbose_name_plural": "snapshots"},
         ),
     ]

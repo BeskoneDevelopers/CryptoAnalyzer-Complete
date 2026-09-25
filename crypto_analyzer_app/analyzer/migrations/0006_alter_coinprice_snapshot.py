@@ -5,15 +5,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('analyzer', '0005_alter_watchlistitem_options'),
+        ("analyzer", "0005_alter_watchlistitem_options"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='coinprice',
-            name='snapshot',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='coin_prices', to='analyzer.snapshot'),
+            model_name="coinprice",
+            name="snapshot",
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="coin_prices", to="analyzer.snapshot"),
         ),
     ]
