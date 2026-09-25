@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from analyzer.health import health_check
 from analyzer.throttling import LoginRateThrottle
 from debug_toolbar.toolbar import debug_toolbar_urls
 from django.contrib import admin
@@ -36,6 +37,7 @@ urlpatterns = [
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/<str:version>/", include("analyzer.urls")),
     path("metrics/", ExportToDjangoView),
+    path("health/", health_check, name="health"),
 ]
 
 urlpatterns.extend(debug_toolbar_urls())
