@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from django.db.models import QuerySet
@@ -5,7 +6,7 @@ from django_filters import rest_framework as filters
 from rest_framework import serializers
 from rest_framework.request import Request
 
-from .models import Coin, CoinPrice, Snapshot, WatchlistItem
+from .models import Coin, CoinPrice, Portfolio, Snapshot, WatchlistItem
 from .services import add_to_watchlist, get_latest_snapshot
 from .services import validate_symbol as service_validate_symbol
 
@@ -34,7 +35,10 @@ class CoinFilter(filters.FilterSet):
         if not self.snapshot:
             return CoinPrice.objects.none().values_list("coin_id", flat=True)
 
-        return CoinPrice.objects.filter(snapshot=self.snapshot, **price_lookup).values_list("coin_id", flat=True)
+        return CoinPrice.objects.filter(
+            snapshot=self.snapshot,
+            **price_lookup,
+        ).values_list("coin_id", flat=True)
 
     def filter_max_price(self, queryset: QuerySet[Coin], name: str, value: Any) -> QuerySet[Coin]:
         coin_ids = self._latest_coin_ids({"price__lte": value})
@@ -117,3 +121,103 @@ class CoinPriceAnalyticSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoinPrice
         fields = ["coin_name", "coin_symbol", "price", "volume_24h", "change_24h"]
+
+
+class PortfolioSerializer(serializers.ModelSerializer):
+    coin = serializers.SerializerMethodField()
+    symbol = serializers.SerializerMethodField()
+
+    current_price = serializers.DecimalField(
+        max_digits=24,
+        decimal_places=8,
+        allow_null=True,
+        read_only=True,
+    )
+    current_value = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+        allow_null=True,
+        read_only=True,
+    )
+
+    class Meta:
+        model = Portfolio
+        fields = [
+            "coin",
+            "symbol",
+            "amount",
+            "buy_price",
+            "current_price",
+            "current_value",
+        ]
+
+    def to_representation(self, instance: Portfolio) -> dict[str, Any]:
+        prices = self.context.get("prices", {})
+        current_price = prices.get(instance.coin_id)
+
+        setattr(instance, "current_price", current_price)
+
+        if current_price is None:
+            current_value = None
+        else:
+            current_value = instance.amount * current_price
+
+        setattr(instance, "current_value", current_value)
+
+        return super().to_representation(instance)
+
+    def get_coin(self, obj: Portfolio) -> str:
+        return obj.coin.name
+
+    def get_symbol(self, obj: Portfolio) -> str:
+        return obj.coin.symbol.upper()
+
+
+class PortfolioBuySerializer(serializers.Serializer):
+    coin = serializers.PrimaryKeyRelatedField(
+        queryset=Coin.objects.all(),
+    )
+    amount = serializers.DecimalField(
+        max_digits=24,
+        decimal_places=12,
+        min_value=Decimal("0.000000000001"),
+    )
+
+
+class PortfolioSellSerializer(serializers.Serializer):
+    coin = serializers.PrimaryKeyRelatedField(
+        queryset=Coin.objects.all(),
+    )
+    amount = serializers.DecimalField(
+        max_digits=24,
+        decimal_places=12,
+        min_value=Decimal("0.000000000001"),
+    )
+
+
+class PortfolioSummarySerializer(serializers.Serializer):
+    balance = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+    )
+    purchase_value = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+    )
+    portfolio_value = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+        allow_null=True,
+    )
+
+    profit_loss = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+        allow_null=True,
+    )
+
+    total_value = serializers.DecimalField(
+        max_digits=36,
+        decimal_places=12,
+        allow_null=True,
+    )

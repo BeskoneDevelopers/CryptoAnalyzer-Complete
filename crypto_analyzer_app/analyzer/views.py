@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from typing import Any
 
+from atomic_tasks.services import PortfolioService
 from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -8,8 +9,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.generics import ListAPIView
 from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -18,12 +20,16 @@ from rest_framework.serializers import BaseSerializer
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
-from .models import Coin, CoinPrice, Snapshot, WatchlistItem
+from .models import Coin, CoinPrice, Portfolio, Snapshot, WatchlistItem
 from .permissions import IsAdminOrReadOnly
 from .serializer import (
     CoinFilter,
     CoinPriceAnalyticSerializer,
     CoinSerializer,
+    PortfolioBuySerializer,
+    PortfolioSellSerializer,
+    PortfolioSerializer,
+    PortfolioSummarySerializer,
     SnapshotSerializer,
     WatchlistInputSerializer,
     WatchlistOutputSerializer,
@@ -32,6 +38,7 @@ from .services import (
     get_cached_market_stats,
     get_cached_top_movers,
     get_cached_top_volume,
+    get_latest_prices,
     remove_from_watchlist,
 )
 from .tasks import fetch_snapshot_task
@@ -260,5 +267,107 @@ class TaskStatusView(APIView):
             {
                 "status": result.status,
                 "result": str(result.result) if result.failed() else result.result,
+            }
+        )
+
+
+class PortfolioListView(ListAPIView):
+    serializer_class = PortfolioSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def get_queryset(self) -> QuerySet[Portfolio]:
+        return Portfolio.objects.filter(user=self.request.user).select_related("coin").order_by("id")
+
+    def get_serializer_context(self) -> dict[str, Any]:
+        context = super().get_serializer_context()
+
+        portfolio = self.get_queryset()
+        coin_ids = portfolio.values_list("coin_id", flat=True)
+
+        try:
+            context["prices"] = get_latest_prices(coin_ids)
+        except Snapshot.DoesNotExist:
+            raise NotFound("Снимок рынка не найден") from None
+
+        return context
+
+
+class PortfolioBuyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=PortfolioBuySerializer,
+        responses={200: dict},
+    )
+    def post(self, request: Request, version: str | None = None) -> Response:
+        serializer = PortfolioBuySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            result = PortfolioService.buy(
+                user=request.user,
+                coin=serializer.validated_data["coin"],
+                amount=serializer.validated_data["amount"],
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc))
+
+        return Response(
+            {
+                "data": result,
+            }
+        )
+
+
+class PortfolioSellView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=PortfolioSellSerializer,
+        responses={200: dict},
+    )
+    def post(self, request: Request, version: str | None = None) -> Response:
+        serializer = PortfolioSellSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            result = PortfolioService.sell(
+                user=request.user,
+                coin=serializer.validated_data["coin"],
+                amount=serializer.validated_data["amount"],
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc))
+
+        return Response(
+            {
+                "data": result,
+            }
+        )
+
+
+class PortfolioSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses=PortfolioSummarySerializer,
+    )
+    def get(self, request: Request, version: str | None = None) -> Response:
+        try:
+            result = PortfolioService.get_summary(
+                user=request.user,
+            )
+        except Snapshot.DoesNotExist:
+            raise NotFound("Снимок рынка не найден") from None
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from None
+
+        serializer = PortfolioSummarySerializer(result)
+
+        return Response(
+            {
+                "data": serializer.data,
             }
         )
