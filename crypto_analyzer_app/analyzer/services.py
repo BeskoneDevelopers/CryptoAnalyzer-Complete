@@ -1,8 +1,9 @@
 from django.conf import settings
+from django.db.models import Sum, Avg, Max, Min
 
 import requests
 
-from analyzer.models import Coin, WatchlistItem
+from .models import Coin, WatchlistItem, CoinPrice, Snapshot
 
 
 def get_provider():
@@ -77,10 +78,12 @@ def add_to_watchlist(user, symbol, coin_data):
         symbol=symbol,
         defaults={"name": coin_data["name"]},
     )
+
     watchlist, _ = WatchlistItem.objects.get_or_create(
         user=user,
         coin=coin,
     )
+
     return watchlist
 
 
@@ -94,16 +97,17 @@ def remove_from_watchlist(user, symbol):
         user=user,
         coin__symbol=symbol,
     ).delete()
+
     if deleted:
         return {
             "valid": True,
             "message": "Данные успешно удалены",
         }
+
     return {
         "valid": False,
         "message": "Данные не найдены",
     }
-
 
 def get_watchlist(user):
     if not user:
@@ -112,3 +116,55 @@ def get_watchlist(user):
     return WatchlistItem.objects.filter(
         user=user
     ).select_related("coin")
+
+def get_latest_snapshot():
+    return Snapshot.objects.order_by("-created_at").first()
+
+def get_market_stats():
+    last = get_latest_snapshot()
+    if not last:
+        return {"error": "Снимков нет!"}
+
+    status = CoinPrice.objects.filter(snapshot=last).aggregate(
+        min_price=Min("price"),
+        max_price=Max("price"),
+        avg_price=Avg("price")
+    )
+
+    return {
+        "snapshot_id": last.id,
+        "provider": last.provider,
+        "total_market_cap": last.total_market_cap,
+        **status
+    }
+
+
+def get_toper(sort_field, limit=10):
+    sort_fields = {
+        "change": "-change_24h",
+        "volume": "-volume_24h",
+    }
+
+    filt = sort_fields.get(sort_field)
+    if not filt:
+        raise ValueError("Неверное поле сортировки")
+
+    last = get_latest_snapshot()
+    if not last:
+        return {"error": "Снимков нет!"}
+
+    return (
+        CoinPrice.objects
+        .filter(snapshot=last)
+        .select_related("coin")
+        .order_by(filt)[:limit]
+    )
+
+
+def get_top_movers(limit=10):
+    return get_toper("change", limit)
+
+
+def get_top_volume(limit=10):
+    return get_toper("volume", limit)
+
