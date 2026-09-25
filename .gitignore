@@ -49,6 +49,9 @@ build/
 # PyInstaller
 *.spec
 
+celerybeat-schedule
+celerybeat-schedule.*
+
 # Local analysis files
 analyze_tests.py
 analysis_prompt.txt

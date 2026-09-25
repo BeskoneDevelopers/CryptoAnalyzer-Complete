@@ -1,4 +1,3 @@
-
 from django_filters import rest_framework as filters
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -19,6 +18,7 @@ from .services import (
     get_market_stats,
     remove_from_watchlist,
 )
+from .tasks import fetch_snapshot_task
 
 
 class SnapshotViewSet(ReadOnlyModelViewSet):
@@ -88,3 +88,25 @@ class TopAnalyticsView(APIView):
         serializer = CoinPriceAnalyticSerializer(data, many=True)
         return Response(serializer.data)
 
+
+class StartSnapshotTaskView(APIView):
+    def post(self, request):
+        provider = request.data.get("provider", "coingecko")
+        limit = request.data.get("limit", 3)
+
+        task = fetch_snapshot_task.delay(provider, limit)
+
+        return Response(
+            {"task_id": task.id},
+            status=202,
+        )
+
+
+class TaskStatusView(APIView):
+    def get(self, request, task_id):
+        result = fetch_snapshot_task.AsyncResult(task_id)
+
+        return Response({
+            "status": result.status,
+            "result": str(result.result) if result.failed() else result.result,
+        })
