@@ -15,7 +15,11 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import sentry_sdk
+import structlog
+from django.http import Http404
 from dotenv import load_dotenv
+from rest_framework.exceptions import NotFound, Throttled
 
 load_dotenv()
 CMC_API_KEY = os.getenv("CMC_API_KEY")
@@ -60,9 +64,11 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
+    "django_prometheus",
 ]
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
@@ -72,6 +78,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "crypto_analyzer_app.urls"
@@ -99,7 +106,7 @@ WSGI_APPLICATION = "crypto_analyzer_app.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.getenv("DB_NAME", "crypto_analyzer_db"),
         "USER": os.getenv("DB_USER", "postgres"),
         "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
@@ -225,6 +232,48 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+
+LOGSTASH_HOST = os.getenv("LOGSTASH_HOST", "localhost")
+LOGSTASH_PORT = int(os.getenv("LOGSTASH_PORT", "5000"))
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": structlog.stdlib.ProcessorFormatter,
+            "processors": [structlog.stdlib.ProcessorFormatter.remove_processors_meta, structlog.processors.JSONRenderer()],
+        }
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "json"},
+        "logstash": {
+            "class": "logstash_async.handler.AsynchronousLogstashHandler",
+            "formatter": "json",
+            "host": LOGSTASH_HOST,
+            "port": LOGSTASH_PORT,
+            "database_path": None,
+            "transport": "logstash_async.transport.TcpTransport",
+            "ssl_enable": False,
+        },
+    },
+    "root": {"handlers": ["console", "logstash"], "level": "INFO"},
+}
+
+structlog.configure(
+    processors=[
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+    ],
+    logger_factory=structlog.stdlib.LoggerFactory(),
+)
+
+SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+if SENTRY_DSN:
+    sentry_sdk.init(dsn=SENTRY_DSN, ignore_errors=[Http404, NotFound, Throttled])
 
 
 EXCHANGE_PROVIDER = os.getenv("EXCHANGE_PROVIDER", "coingecko")

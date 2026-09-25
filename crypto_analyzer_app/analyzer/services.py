@@ -1,13 +1,15 @@
 from collections.abc import Callable, Iterable
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 import requests
+import structlog
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db.models import Avg, Max, Min, QuerySet
 
+from .metrics import crypto_cache_total
 from .models import Coin, CoinPrice, Snapshot, WatchlistItem
 
 ANALYTICS_CACHE_TTL = 4200
@@ -16,7 +18,7 @@ TOP_MOVERS_CACHE_KEY = "top_movers"
 VOLUME_LEADERS_CACHE_KEY = "volume_leaders"
 
 
-def get_provider() -> Callable[[str], dict[str, Any] | bool]:
+def get_provider() -> Callable[[str], dict[str, Any] | Literal[False]]:
     if settings.EXCHANGE_PROVIDER == "coingecko":
         return validate_symbol_coingecko
 
@@ -26,7 +28,7 @@ def get_provider() -> Callable[[str], dict[str, Any] | bool]:
     raise ValueError(f"Неизвестный провайдер: {settings.EXCHANGE_PROVIDER}")
 
 
-def validate_symbol_coingecko(symbol: str) -> dict[str, Any] | bool:
+def validate_symbol_coingecko(symbol: str) -> dict[str, Any] | Literal[False]:
     search_symbol = f"https://api.coingecko.com/api/v3/search?query={symbol}"
 
     with requests.Session() as session:
@@ -41,7 +43,7 @@ def validate_symbol_coingecko(symbol: str) -> dict[str, Any] | bool:
     return False
 
 
-def validate_symbol_coinmarketcap(symbol: str) -> dict[str, Any] | bool:
+def validate_symbol_coinmarketcap(symbol: str) -> dict[str, Any] | Literal[False]:
     api_key = settings.CMC_API_KEY
     if not api_key:
         raise ValueError("Отсутствует API ключ CoinMarketCap")
@@ -69,9 +71,23 @@ def validate_symbol_coinmarketcap(symbol: str) -> dict[str, Any] | bool:
     return False
 
 
-def validate_symbol(symbol: str) -> dict[str, Any] | bool:
-    provider = get_provider()
-    return provider(symbol)
+logger = structlog.get_logger(__name__)
+
+
+def validate_symbol(symbol: str) -> dict[str, Any] | Literal[False]:
+    try:
+        provider = get_provider()
+        result = provider(symbol)
+    except Exception as e:
+        logger.error("validate_symbol_failed", symbol=symbol, provider=settings.EXCHANGE_PROVIDER, error=str(e))
+        raise
+
+    if result is False:
+        logger.warning("symbol_invalid", symbol=symbol, provider=settings.EXCHANGE_PROVIDER)
+        return False
+
+    logger.info("symbol_validated", symbol=symbol, provider=settings.EXCHANGE_PROVIDER, coin_name=result.get("name"))
+    return result
 
 
 def add_to_watchlist(
@@ -207,12 +223,18 @@ def get_or_set_cache(
     cache_key: str,
     loader: Callable[[], Any],
     *,
+    key_prefix: str,
     force_refresh: bool = False,
 ) -> Any:
+
     if not force_refresh:
         cached = cache.get(cache_key)
+
         if cached is not None:
+            crypto_cache_total.labels(key_prefix=key_prefix, result="hit").inc()
             return cached
+
+        crypto_cache_total.labels(key_prefix=key_prefix, result="miss").inc()
 
     data = loader()
 
@@ -227,6 +249,7 @@ def get_cached_market_stats(force_refresh: bool = False) -> dict[str, Any]:
     return get_or_set_cache(
         MARKET_STATS_CACHE_KEY,
         get_market_stats,
+        key_prefix="market_stats",
         force_refresh=force_refresh,
     )
 
@@ -255,6 +278,7 @@ def get_cached_top_movers(force_refresh: bool = False) -> Any:
     return get_or_set_cache(
         TOP_MOVERS_CACHE_KEY,
         get_serialized_top_movers,
+        key_prefix="top_movers",
         force_refresh=force_refresh,
     )
 
@@ -263,6 +287,7 @@ def get_cached_top_volume(force_refresh: bool = False) -> Any:
     return get_or_set_cache(
         VOLUME_LEADERS_CACHE_KEY,
         get_serialized_top_volume,
+        key_prefix="top_volume",
         force_refresh=force_refresh,
     )
 

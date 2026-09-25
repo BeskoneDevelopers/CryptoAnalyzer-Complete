@@ -5,6 +5,9 @@ x-app-environment: &app-environment
   DB_HOST: db
   DB_PORT: "5432"
   REDIS_HOST: redis
+  LOGSTASH_HOST: logstash
+  LOGSTASH_PORT: "5000"
+  SENTRY_DSN: ${SENTRY_DSN:-}
 
 services:
   db:
@@ -35,7 +38,9 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn crypto_analyzer_app.wsgi:application --workers 2 --bind 0.0.0.0:8000"
+             rm -rf /tmp/prometheus_multiproc &&
+             mkdir -p /tmp/prometheus_multiproc &&
+             PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc gunicorn crypto_analyzer_app.wsgi:application --workers 2 --bind 0.0.0.0:8000"
     environment: *app-environment
     depends_on:
       db:
@@ -47,7 +52,7 @@ services:
 
   celery_worker:
     build: .
-    command: celery -A crypto_analyzer_app worker -l info
+    command: celery -A crypto_analyzer_app worker -l info --concurrency=2
     environment: *app-environment
     depends_on:
       db:
@@ -75,6 +80,69 @@ services:
     depends_on:
       - web
 
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9099:9090"
+    depends_on:
+      - web
+
+  grafana:
+    image: grafana/grafana:13.2.2
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.4
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:9.5.4
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./docker/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.5.4
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+
+
 volumes:
   postgres_data:
   staticfiles:
+  prometheus_data:
+  grafana_data:
+  elasticsearch_data:

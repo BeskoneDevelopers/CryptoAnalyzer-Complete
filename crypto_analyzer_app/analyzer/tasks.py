@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import requests
+import structlog
 from celery import shared_task
 from django.conf import settings
 from django.db.models import Sum
@@ -82,14 +83,28 @@ def _get_retry_countdown(retries: int) -> int:
     return min(60 * (2**retries), 300)
 
 
+logger = structlog.get_logger(__name__)
+
+
 @shared_task(bind=True, max_retries=3)
 def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
 
     if provider == "coinmarketcap" and not settings.CMC_API_KEY:
+        logger.error(
+            "snapshot_fetch_failed",
+            provider=provider,
+            reason="missing_api_key",
+        )
         raise ValueError("Отсутствует API ключ")
 
     recent = Snapshot.objects.filter(provider=provider, created_at__gte=timezone.now() - timedelta(minutes=3)).first()
     if recent:
+        logger.info(
+            "snapshot_skipped",
+            provider=provider,
+            snapshot_id=recent.pk,
+            reason="recent_snapshot_exists",
+        )
         return {"snapshot_id": recent.pk, "already_exists": True}
 
     try:
@@ -99,6 +114,13 @@ def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
         requests.exceptions.Timeout,
     ) as exc:
         countdown = _get_retry_countdown(self.request.retries)
+        logger.warning(
+            "snapshot_fetch_retry",
+            provider=provider,
+            retry=self.request.retries,
+            countdown=countdown,
+            error=str(exc),
+        )
         raise self.retry(exc=exc, countdown=countdown)
 
     snapshot = Snapshot.objects.create(provider=provider, total_coins=len(coins_data), total_market_cap=0)
@@ -129,6 +151,14 @@ def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
 
     snapshot.total_market_cap = total_market_cap
     snapshot.save()
+
+    logger.info(
+        "snapshot_created",
+        provider=provider,
+        snapshot_id=snapshot.pk,
+        total_coins=snapshot.total_coins,
+        total_market_cap=str(snapshot.total_market_cap),
+    )
 
     refresh_analytics_cache()
 
