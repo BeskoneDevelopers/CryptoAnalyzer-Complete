@@ -128,6 +128,13 @@ services:
       elasticsearch:
         condition: service_healthy
 
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:9600/_node/pipelines > /dev/null || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   kibana:
     image: docker.elastic.co/kibana/kibana:9.5.4
     ports:
@@ -137,6 +144,13 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
+
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:5601/api/status > /dev/null || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
 
 

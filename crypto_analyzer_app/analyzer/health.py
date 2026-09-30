@@ -47,9 +47,11 @@ def health_check(request):
 
     data = {
         "status": "ok" if all_ok else "degraded",
-        "database": "ok" if database_ok else "error",
-        "redis": "ok" if cache_ok else "error",
-        "celery_broker": "ok" if celery_broker_ok else "error",
+        "checks": {
+            "database": "ok" if database_ok else "error",
+            "redis": "ok" if cache_ok else "error",
+            "celery_broker": "ok" if celery_broker_ok else "error",
+        },
     }
     status_code = 200 if all_ok else 503
 

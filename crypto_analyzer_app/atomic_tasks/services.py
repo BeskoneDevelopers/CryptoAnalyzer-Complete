@@ -12,11 +12,17 @@ logger = structlog.get_logger(__name__)
 class PortfolioService:
     @staticmethod
     def buy(user: User, coin: Coin, amount: Decimal) -> dict[str, str]:
+        log = logger.bind(
+            user_id=user.id,
+            symbol=coin.symbol.upper(),
+            amount=str(amount),
+        )
+
         with transaction.atomic():
             try:
                 balance = Balance.objects.select_for_update().get(user=user)
             except Balance.DoesNotExist:
-                logger.warning("buy_coin_failed", user_id=user.id, symbol=coin.symbol, amount=str(amount), reason="balance_not_found")
+                log.warning("buy_coin_failed", reason="balance_not_found")
                 raise ValueError("Баланс пользователя не найден") from None
 
             price = get_latest_price(coin)
@@ -24,9 +30,7 @@ class PortfolioService:
             new_balance = balance.amount - cost
 
             if new_balance < 0:
-                logger.warning(
-                    "buy_coin_failed", user_id=user.id, symbol=coin.symbol.upper(), amount=str(amount), reason="insufficient_funds"
-                )
+                log.warning("buy_coin_failed", reason="insufficient_funds")
                 raise ValueError("Недостаточно средств")
 
             balance.amount = new_balance
@@ -44,8 +48,10 @@ class PortfolioService:
                 portfolio.save()
 
             transaction.on_commit(
-                lambda: logger.info(
-                    "buy_coin", user_id=user.id, symbol=coin.symbol, amount=str(amount), price=str(price), cost=str(cost)
+                lambda: log.info(
+                    "buy_coin",
+                    price=str(price),
+                    cost=str(cost),
                 )
             )
 
@@ -53,20 +59,24 @@ class PortfolioService:
 
     @staticmethod
     def sell(user: User, coin: Coin, amount: Decimal) -> dict[str, str]:
+        log = logger.bind(
+            user_id=user.id,
+            symbol=coin.symbol.upper(),
+            amount=str(amount),
+        )
+
         with transaction.atomic():
             try:
                 balance = Balance.objects.select_for_update().get(user=user)
             except Balance.DoesNotExist:
-                logger.warning("sell_coin_failed", user_id=user.id, symbol=coin.symbol, amount=str(amount), reason="balance_not_found")
+                log.warning("sell_coin_failed", reason="balance_not_found")
                 raise ValueError("Баланс пользователя не найден") from None
 
             try:
                 portfolio = Portfolio.objects.select_for_update().get(user=user, coin=coin)
 
             except Portfolio.DoesNotExist:
-                logger.warning(
-                    "sell_coin_failed", user_id=user.id, symbol=coin.symbol, amount=str(amount), reason="position_not_found"
-                )
+                log.warning("sell_coin_failed", reason="position_not_found")
                 raise ValueError("Позиция отсутствует")
 
             old_amount = portfolio.amount
@@ -74,9 +84,7 @@ class PortfolioService:
             portfolio.amount = old_amount - amount
 
             if portfolio.amount < 0:
-                logger.warning(
-                    "sell_coin_failed", user_id=user.id, symbol=coin.symbol, amount=str(amount), reason="insufficient_coins"
-                )
+                log.warning("sell_coin_failed", reason="insufficient_coins")
                 raise ValueError("Недостаточно монет в портфеле")
 
             price = get_latest_price(coin)
@@ -91,8 +99,10 @@ class PortfolioService:
                 portfolio.save()
 
             transaction.on_commit(
-                lambda: logger.info(
-                    "sell_coin", user_id=user.id, symbol=coin.symbol, amount=str(amount), price=str(price), cost=str(cost)
+                lambda: log.info(
+                    "sell_coin",
+                    price=str(price),
+                    cost=str(cost),
                 )
             )
 

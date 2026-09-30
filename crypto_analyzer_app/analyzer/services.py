@@ -12,6 +12,8 @@ from django.db.models import Avg, Max, Min, QuerySet
 from .metrics import crypto_cache_total
 from .models import Coin, CoinPrice, Snapshot, WatchlistItem
 
+logger = structlog.get_logger(__name__)
+
 ANALYTICS_CACHE_TTL = 4200
 MARKET_STATS_CACHE_KEY = "market_stats"
 TOP_MOVERS_CACHE_KEY = "top_movers"
@@ -69,9 +71,6 @@ def validate_symbol_coinmarketcap(symbol: str) -> dict[str, Any] | Literal[False
             }
 
     return False
-
-
-logger = structlog.get_logger(__name__)
 
 
 def validate_symbol(symbol: str) -> dict[str, Any] | Literal[False]:

@@ -10,6 +10,8 @@ from django.utils import timezone
 from analyzer.models import Coin, CoinPrice, Snapshot
 from analyzer.services import refresh_analytics_cache
 
+logger = structlog.get_logger(__name__)
+
 
 def _fetch_data(provider, limit):
     if provider == "coingecko":
@@ -83,11 +85,13 @@ def _get_retry_countdown(retries: int) -> int:
     return min(60 * (2**retries), 300)
 
 
-logger = structlog.get_logger(__name__)
-
-
 @shared_task(bind=True, max_retries=3)
 def fetch_snapshot_task(self, provider: str = "coingecko", limit: int = 5):
+    logger.info(
+        "snapshot_fetch_started",
+        provider=provider,
+        limit=limit,
+    )
 
     if provider == "coinmarketcap" and not settings.CMC_API_KEY:
         logger.error(

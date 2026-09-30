@@ -21,6 +21,9 @@ class HealthCheckTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
+        self.assertEqual(response.json()["checks"]["database"], "ok")
+        self.assertEqual(response.json()["checks"]["redis"], "ok")
+        self.assertEqual(response.json()["checks"]["celery_broker"], "ok")
 
     @patch("analyzer.health._check_database")
     @patch("analyzer.health._check_cache")
@@ -39,6 +42,6 @@ class HealthCheckTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["status"], "degraded")
-        self.assertEqual(response.json()["database"], "ok")
-        self.assertEqual(response.json()["redis"], "error")
-        self.assertEqual(response.json()["celery_broker"], "ok")
+        self.assertEqual(response.json()["checks"]["database"], "ok")
+        self.assertEqual(response.json()["checks"]["redis"], "error")
+        self.assertEqual(response.json()["checks"]["celery_broker"], "ok")

@@ -20,6 +20,7 @@ import structlog
 from django.http import Http404
 from dotenv import load_dotenv
 from rest_framework.exceptions import NotFound, Throttled
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 load_dotenv()
 CMC_API_KEY = os.getenv("CMC_API_KEY")
@@ -244,7 +245,14 @@ LOGGING = {
     "formatters": {
         "json": {
             "()": structlog.stdlib.ProcessorFormatter,
-            "processors": [structlog.stdlib.ProcessorFormatter.remove_processors_meta, structlog.processors.JSONRenderer()],
+            "foreign_pre_chain": [
+                structlog.stdlib.add_log_level,
+                structlog.processors.TimeStamper(fmt="iso"),
+            ],
+            "processors": [
+                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                structlog.processors.JSONRenderer(),
+            ],
         }
     },
     "handlers": {
@@ -273,7 +281,13 @@ structlog.configure(
 
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 if SENTRY_DSN:
-    sentry_sdk.init(dsn=SENTRY_DSN, ignore_errors=[Http404, NotFound, Throttled])
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            LoggingIntegration(event_level=None),
+        ],
+        ignore_errors=[Http404, NotFound, Throttled],
+    )
 
 
 EXCHANGE_PROVIDER = os.getenv("EXCHANGE_PROVIDER", "coingecko")
