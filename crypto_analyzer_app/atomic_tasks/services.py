@@ -1,29 +1,43 @@
 from decimal import Decimal
 
+import structlog
 from analyzer.models import Balance, Coin, Portfolio
 from analyzer.services import get_latest_price, get_latest_prices
 from django.contrib.auth.models import User
 from django.db import transaction
 
+logger = structlog.get_logger(__name__)
+
 
 class PortfolioService:
     @staticmethod
     def buy(user: User, coin: Coin, amount: Decimal) -> dict[str, str]:
+        log = logger.bind(
+            user_id=user.id,
+            symbol=coin.symbol.upper(),
+            amount=str(amount),
+        )
+
         with transaction.atomic():
             try:
                 balance = Balance.objects.select_for_update().get(user=user)
             except Balance.DoesNotExist:
+                log.warning("buy_coin_failed", reason="balance_not_found")
                 raise ValueError("Баланс пользователя не найден") from None
 
             price = get_latest_price(coin)
             cost = amount * price
             new_balance = balance.amount - cost
+
             if new_balance < 0:
+                log.warning("buy_coin_failed", reason="insufficient_funds")
                 raise ValueError("Недостаточно средств")
+
             balance.amount = new_balance
             balance.save()
 
             portfolio, created = Portfolio.objects.get_or_create(user=user, coin=coin, defaults={"amount": amount, "buy_price": price})
+
             if not created:
                 old_amount = portfolio.amount
                 old_price = portfolio.buy_price
@@ -33,15 +47,45 @@ class PortfolioService:
                 portfolio.buy_price = avg_price
                 portfolio.save()
 
+            transaction.on_commit(
+                lambda: log.info(
+                    "buy_coin",
+                    price=str(price),
+                    cost=str(cost),
+                )
+            )
+
         return {"successful": "Операция прошла успешно"}
 
     @staticmethod
     def sell(user: User, coin: Coin, amount: Decimal) -> dict[str, str]:
+        log = logger.bind(
+            user_id=user.id,
+            symbol=coin.symbol.upper(),
+            amount=str(amount),
+        )
+
         with transaction.atomic():
             try:
                 balance = Balance.objects.select_for_update().get(user=user)
             except Balance.DoesNotExist:
+                log.warning("sell_coin_failed", reason="balance_not_found")
                 raise ValueError("Баланс пользователя не найден") from None
+
+            try:
+                portfolio = Portfolio.objects.select_for_update().get(user=user, coin=coin)
+
+            except Portfolio.DoesNotExist:
+                log.warning("sell_coin_failed", reason="position_not_found")
+                raise ValueError("Позиция отсутствует")
+
+            old_amount = portfolio.amount
+
+            portfolio.amount = old_amount - amount
+
+            if portfolio.amount < 0:
+                log.warning("sell_coin_failed", reason="insufficient_coins")
+                raise ValueError("Недостаточно монет в портфеле")
 
             price = get_latest_price(coin)
             cost = amount * price
@@ -49,20 +93,19 @@ class PortfolioService:
             balance.amount = new_balance
             balance.save()
 
-            try:
-                portfolio = Portfolio.objects.get(user=user, coin=coin)
-            except Portfolio.DoesNotExist:
-                raise ValueError("Позиция отсутствует")
-
-            old_amount = portfolio.amount
-
-            portfolio.amount = old_amount - amount
-            if portfolio.amount < 0:
-                raise ValueError("Недостаточно монет в портфеле")
-            elif portfolio.amount == 0:
+            if portfolio.amount == 0:
                 portfolio.delete()
             else:
                 portfolio.save()
+
+            transaction.on_commit(
+                lambda: log.info(
+                    "sell_coin",
+                    price=str(price),
+                    cost=str(cost),
+                )
+            )
+
         return {"successful": "Операция прошла успешно"}
 
     @staticmethod

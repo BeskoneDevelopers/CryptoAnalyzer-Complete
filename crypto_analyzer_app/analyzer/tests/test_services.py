@@ -273,13 +273,17 @@ class CeleryTasksTests(TestCase):
 
 @pytest.mark.unit
 class CacheServiceTests(SimpleTestCase):
+    @patch("analyzer.services.crypto_cache_total")
     @patch("analyzer.services.cache")
-    def test_get_or_set_cache_miss(self, mock_cache):
+    def test_get_or_set_cache_miss(self, mock_cache, mock_crypto_cache_total):
         mock_cache.get.return_value = None
 
         loader = Mock(return_value={"value": 123})
 
-        result = get_or_set_cache("test_key", loader)
+        result = get_or_set_cache("test_key", loader, key_prefix="test")
+
+        mock_crypto_cache_total.labels.assert_called_once_with(key_prefix="test", result="miss")
+        mock_crypto_cache_total.labels.return_value.inc.assert_called_once_with()
 
         self.assertEqual(result, {"value": 123})
         loader.assert_called_once_with()
@@ -290,30 +294,38 @@ class CacheServiceTests(SimpleTestCase):
             ANALYTICS_CACHE_TTL,
         )
 
+    @patch("analyzer.services.crypto_cache_total")
     @patch("analyzer.services.cache")
-    def test_get_or_set_cache_hit(self, mock_cache):
+    def test_get_or_set_cache_hit(self, mock_cache, mock_crypto_cache_total):
         cached_data = {"value": 123}
         mock_cache.get.return_value = cached_data
 
         loader = Mock()
 
-        result = get_or_set_cache("test_key", loader)
+        result = get_or_set_cache("test_key", loader, key_prefix="test")
+
+        mock_crypto_cache_total.labels.assert_called_once_with(key_prefix="test", result="hit")
+        mock_crypto_cache_total.labels.return_value.inc.assert_called_once_with()
 
         self.assertEqual(result, cached_data)
         mock_cache.get.assert_called_once_with("test_key")
         loader.assert_not_called()
         mock_cache.set.assert_not_called()
 
+    @patch("analyzer.services.crypto_cache_total")
     @patch("analyzer.services.cache")
-    def test_get_or_set_cache_force_refresh(self, mock_cache):
+    def test_get_or_set_cache_force_refresh(self, mock_cache, mock_crypto_cache_total):
         fresh_data = {"value": 999}
         loader = Mock(return_value=fresh_data)
 
         result = get_or_set_cache(
             "test_key",
             loader,
+            key_prefix="test",
             force_refresh=True,
         )
+
+        mock_crypto_cache_total.labels.assert_not_called()
 
         self.assertEqual(result, fresh_data)
         mock_cache.get.assert_not_called()
@@ -331,7 +343,7 @@ class CacheServiceTests(SimpleTestCase):
         error = {"error": "Снимков нет!"}
         loader = Mock(return_value=error)
 
-        result = get_or_set_cache("test_key", loader)
+        result = get_or_set_cache("test_key", loader, key_prefix="test")
 
         self.assertEqual(result, error)
         loader.assert_called_once_with()

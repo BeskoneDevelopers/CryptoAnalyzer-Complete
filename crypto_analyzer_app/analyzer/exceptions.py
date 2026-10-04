@@ -1,3 +1,4 @@
+import sentry_sdk
 from django.http import Http404
 from rest_framework.exceptions import (
     AuthenticationFailed,
@@ -16,6 +17,12 @@ def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
 
     if response is None:
+        request = context.get("request")
+
+        if request is not None and request.user.is_authenticated:
+            sentry_sdk.set_user({"id": request.user.pk})
+        sentry_sdk.capture_exception(exc)
+
         return Response(
             {
                 "error": "Ошибка сервера. Попробуйте позже",

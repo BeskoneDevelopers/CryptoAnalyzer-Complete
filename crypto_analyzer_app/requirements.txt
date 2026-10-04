@@ -65,3 +65,7 @@ waitress==3.0.2
 wcwidth==0.8.3
 requests-mock==1.12.1
 gunicorn==26.2.0
+django-prometheus==2.5.0
+structlog==26.1.0
+python-logstash-async==4.1.0
+sentry-sdk==2.70.0
